@@ -5,13 +5,15 @@ from camphor.registration import transform
 import camphor.DataIO as DataIO
 
 """
-This filter calculates the baseline fluorescence of all trials, and for each trial,
-registers each time frame to the trial's own baseline (intra-trial registration)
+This filter registers the high-resolution scan to the average trial data
+It first calculates the average of all pre-stimulus time frames for all trials,
+averages over all trials, up-samples the result and then registers the high-resolution
+scan to this data.
 """
-class registerToTrialBaseline(camphorRegistrationMethod):
+class registerHighResolutionScan(camphorRegistrationMethod):
     def __init__(self):
-        super(registerToTrialBaseline, self).__init__()
-        self._parameters = registerToTrialBaselineParameters()
+        super(registerHighResolutionScan, self).__init__()
+        self._parameters = registerHighResolutionScanParameters()
         self.nDone = 0
         self.nTotal = 1
         self.curFrame = 0
@@ -81,7 +83,7 @@ class registerToTrialBaseline(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformobject = registerToTrialBaselineTransform(nFrames=nFrames)
+        transformobject = registerHighResolutionScanTransform(nFrames=nFrames)
 
         fixed_image = sitk.GetImageFromArray(template.astype(numpy.double))
         for i, d in enumerate(data):
@@ -153,7 +155,7 @@ class registerToTrialBaseline(camphorRegistrationMethod):
 
         return progress
 
-class registerToTrialBaselineParameters(object):
+class registerHighResolutionScanParameters(object):
     def __init__(self):
         self.learningRate = 1
         self.numberOfIterations = 300
@@ -172,9 +174,9 @@ class registerToTrialBaselineParameters(object):
                                                     ['Each iteration', 'Once', 'Never']],
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
-class registerToTrialBaselineTransform(transform.transform):
+class registerHighResolutionScanTransform(transform.transform):
     def __init__(self, nFrames=0):
-        super(registerToTrialBaselineTransform, self).__init__()
+        super(registerHighResolutionScanTransform, self).__init__()
 
         # This transform is applied to an entire trial
         self.type = transform.TIMESLICEWISE
@@ -183,12 +185,12 @@ class registerToTrialBaselineTransform(transform.transform):
         self.transform = [sitk.Euler3DTransform() for i in range(nFrames)]
 
         # The transform's name
-        self.name = 'registerToTrialBaseline'
+        self.name = 'registerHighResolutionScan'
 
     def apply(self, data):
         transformed_data = []
 
-        print("Applying registerToTrialBaselineTransform")
+        print("Applying registerHighResolutionScanTransform")
         for i,d in enumerate(data):
             image = sitk.GetImageFromArray(d.astype(numpy.double))
             rimage = sitk.Resample(image, self.transform[i], sitk.sitkLinear, 0.0, image.GetPixelIDValue())
@@ -197,5 +199,5 @@ class registerToTrialBaselineTransform(transform.transform):
         return transformed_data
 
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
-filter = registerToTrialBaseline
+filter = registerHighResolutionScan
 
