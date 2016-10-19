@@ -37,6 +37,7 @@ class registerHighResolutionScan(camphorRegistrationMethod):
         transformlist = []
         self.nDone = 0
 
+        self.message('Calculating baselines...',progress=0)
         for b in brain:
             nTrials = camphor.project.brain[b].nTrials
             for i in range(nTrials):
