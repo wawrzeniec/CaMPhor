@@ -7,6 +7,7 @@ from camphor.camphorProject import camphorProject
 import os
 import datetime
 import numpy
+import SimpleITK as sitk
 
 class camphor(QtGui.QMainWindow):
     """
@@ -41,7 +42,7 @@ class camphor(QtGui.QMainWindow):
         # Displays ready in the status ar
         self.Output('Ready.',2000)
 
-    def openFile(self, dub=None, file=None, view=0, transforms=()):
+    def openFile(self, dub=None, file=None, view=0, transforms=(), flip=False):
         """
         camphor.openFile()
 
@@ -59,10 +60,14 @@ class camphor(QtGui.QMainWindow):
         if fname != ".":
             if view==0:
                 self.rawData = DataIO.LSMLoad(fname)
+                if flip:
+                    self.rawData = [self.rawData[i][::-1,:,:] for i in range(len(self.rawData))]
                 self.dataLoaded = True
                 self.fileName = fname
             elif view==1:
                 self.rawData1 = DataIO.LSMLoad(fname)
+                if flip:
+                    self.rawData1 = [self.rawData1[i][::-1,:,:] for i in range(len(self.rawData1))]
                 self.dataLoaded1 = True
                 self.fileName = fname
                 # Renders the loaded data in the VTK plugin
@@ -77,6 +82,8 @@ class camphor(QtGui.QMainWindow):
                     self.setWindowTitle("{:s} - {:s}".format(self.ini['APPNAME'], os.path.basename(self.fileName)))
             elif view==2:
                 self.rawData2 = DataIO.LSMLoad(fname)
+                if flip:
+                    self.rawData2 = [self.rawData2[i][::-1,:,:] for i in range(len(self.rawData2))]
                 self.dataLoaded2 = True
                 self.fileName2 = fname
 
@@ -111,12 +118,19 @@ class camphor(QtGui.QMainWindow):
         if brain is None:
             return
 
-        dataFile = self.project.brain[brain].trial[trial].dataFile
-        transforms = self.project.brain[brain].trial[trial].transforms
-        trialName = self.project.brain[brain].trial[trial].name
+        if trial==-1:
+            # This points to the high-resolution scan
+            dataFile = self.project.brain[brain].highResScan.dataFile
+            transforms = self.project.brain[brain].highResScan.transforms
+            trialName = self.project.brain[brain].highResScan.name
+        else:
+            dataFile = self.project.brain[brain].trial[trial].dataFile
+            transforms = self.project.brain[brain].trial[trial].transforms
+            trialName = self.project.brain[brain].trial[trial].name
+
         self.Output("Loading {:s}".format(trialName))
 
-        self.openFile(file=dataFile, transforms=transforms, view=view)
+        self.openFile(file=dataFile, transforms=transforms, view=view, flip=(trial==-1))
         if view==1:
             self.vtkView.trialLabel.setText('Brain {:d}/{:s}'.format(brain,trialName))
         elif view==2:
@@ -133,7 +147,7 @@ class camphor(QtGui.QMainWindow):
 
     def addBrain(self):
         """
-        camphor.addTrial()
+        camphor.addBrain()
 
         This function summons a directory selection dialog and adds the contents of the directory to the project as a new brain
         :return:
@@ -162,6 +176,59 @@ class camphor(QtGui.QMainWindow):
                 # Updates the application so that it doesn't freeze
                 QtCore.QCoreApplication.processEvents()
 
+            self.projectView.setProject(self.project)
+
+    def addTrial(self, more):
+        """
+        camphor.addTrial()
+
+        This function summons an open file dialog and adds the selected file as a new trial to the current brain
+
+        :return: nothing
+        """
+
+        # If the user shift-clicked, we will display a dialog requesting the high-resolution scan
+        HRS = QtGui.QApplication.queryKeyboardModifiers().__int__() == QtCore.Qt.SHIFT
+        print(HRS)
+
+        # Get the currently selected brain
+
+        brain = self.projectView.getCurrentBrain()
+        dir = self.project.brain[brain].directory
+
+        if HRS:
+            dialogText = 'Open High-Resolution Scan'
+        else:
+            dialogText = 'Open Trial Image'
+
+        fname = os.path.normpath(QtGui.QFileDialog.getOpenFileName(self, dialogText,
+                                                               os.path.normpath(dir),
+                                                               '*.lsm;*.tif'))
+
+        if fname != ".":
+            dataFile = os.path.join(dir, fname)
+            if fname.endswith('.lsm'):
+                info = utils.LSMInfo(fname)
+            else:
+                info = ''
+
+            if HRS:
+                self.project.addHighResScan(brainIndex=brain, info=info, dataFile=dataFile, name='High-Resolution Scan')
+            else:
+                self.project.appendTrial(brainIndex=brain, info=info, dataFile=dataFile)
+
+            # Updates the application so that it doesn't freeze
+            QtCore.QCoreApplication.processEvents()
+
+            self.projectView.setProject(self.project)
+
+    def eraseTrials(self, brain, trial):
+        if trial==-1:
+            # This means remove the high-resolution scan
+            self.project.brain[brain].highResScan = []
+            self.projectView.setProject(self.project)
+        else:
+            self.project.eraseTrials(brain,trial)
             self.projectView.setProject(self.project)
 
     def saveProject(self, dub=None, fileName=None):
@@ -228,6 +295,25 @@ class camphor(QtGui.QMainWindow):
         transforms2 = self.project.brain[brain[1]].trial[trial[1]].transforms
         fun(data1=data1,transforms1=transforms1,data2=data2,transforms2=transforms2)
 
+    def overlayHRS(self, brain, trial, view=1):
+        if view==1:
+            fun = self.vtkView.overlay
+        elif view==2:
+            fun = self.vtkView2.overlay
+        else:
+            fun = self.vtkView.overlay
+
+        brain = brain[0]
+        trial = trial[0]
+        data1 = DataIO.LSMLoad(self.project.brain[brain].trial[trial].dataFile)
+        data2 = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
+        data2 = [data2[0][::-1,:,:] for i in range(len(data1))]
+        data1 = [self.resampleData(data1[i], data2[i], data2[i].shape) for i in range(len(data1))]
+
+        transforms1 = self.project.brain[brain].trial[trial].transforms
+        transforms2 = self.project.brain[brain].highResScan.transforms
+        fun(data1=data1,transforms1=transforms1,data2=data2,transforms2=transforms2)
+
     def saveRegistered(self):
         for brain in range(self.project.nBrains):
             # Checks if directory exists
@@ -248,6 +334,27 @@ class camphor(QtGui.QMainWindow):
                 newpath = os.path.join(regDir,newname)
                 DataIO.saveImageSeries(d,newpath)
 
+    def resampleData(self, data, template, size):
+        fixed_image = sitk.GetImageFromArray(data.astype(numpy.double))
+        moving_image = sitk.GetImageFromArray(template.astype(numpy.double))
+
+        lxf, lyf, lzf = fixed_image.GetSize()
+        lxm, lym, lzm = moving_image.GetSize()
+        fixed_image.SetSpacing((lxm / lxf, lym / lyf, lzm / lzf))
+
+        # First we need to resample the template to match the dimensions of the data
+        resampled_template = sitk.Image(moving_image.GetSize(), moving_image.GetPixelIDValue())
+        resampled_template.SetSpacing((1, 1, 1))
+        resampled_template.SetOrigin(moving_image.GetOrigin())
+        resampled_template.SetDirection(moving_image.GetDirection())
+
+        # Resample original image using identity transform and the BSpline interpolator.
+        resample = sitk.ResampleImageFilter()
+        resample.SetReferenceImage(resampled_template)
+        resample.SetInterpolator(sitk.sitkBSpline)
+        resample.SetTransform(sitk.Transform())
+        resampled_template = resample.Execute(fixed_image)
+        return sitk.GetArrayFromImage(resampled_template).astype(numpy.uint8)
 
 ##################################
 #########       main () ##########

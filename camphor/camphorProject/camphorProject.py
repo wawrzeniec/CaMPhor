@@ -9,6 +9,9 @@ The display is implemented in camphor.projectView's projectView class
 
 import os
 import copy
+import SimpleITK as sitk
+from camphor.registration import flipImageFilter
+import numpy
 
 class camphorProject:
     """
@@ -61,6 +64,21 @@ class camphorProject:
             stimulusID=stimulusID))
         self.brain[brainIndex].nTrials += 1
 
+    def eraseTrials(self, brain, trial):
+        for i,j in zip(reversed(list(brain)), reversed(list(trial))):
+                print('i={:d}, j={:d}, nTrials={:d}, len={:d}'.format(i,j,self.brain[i].nTrials,len(self.brain[i].trial)))
+                self.brain[i].nTrials -= 1
+                del self.brain[i].trial[j]
+
+        # Adjusts the indices of remaining trials
+        for i in range(self.nBrains):
+            for j in range(self.brain[i].nTrials):
+                self.brain[i].trial[j].index = j
+
+
+    def addHighResScan(self, brainIndex, dataFile, info, name=None):
+        self.brain[brainIndex].highResScan = highResScanData(brainIndex=brainIndex, dataFile=dataFile, info=info, name=name)
+
     def copy(self):
         """
         camphorProject.copy()
@@ -105,7 +123,11 @@ class brainData:
         else:
             self.directory = directory
 
+        # The list of brain-wise transforms
         self.transforms = []
+
+        # The associated high-resolution scan
+        self.highResScan = None
 
     def copy(self):
         newb = brainData()
@@ -119,8 +141,10 @@ class brainData:
             elif k == 'trial':
                 attr = self.__getattribute__(k)
                 for t in attr:
-                    print(t.copy())
                     newb.trial.append(t.copy())
+            elif k == 'highResScan':
+                attr = self.__getattribute__(k)
+                newb.highResScan = attr.copy()
             else:
                 newb.__setattr__(k, copy.deepcopy(self.__getattribute__(k)))
 
@@ -175,6 +199,9 @@ class trialData:
         # The transforms
         self.transforms = []
 
+        # The VOI data
+        self.VOIdata = []
+
     def copy(self):
         newt = trialData()
 
@@ -188,3 +215,68 @@ class trialData:
                 newt.__setattr__(k, copy.deepcopy(self.__getattribute__(k)))
 
         return newt
+
+
+class highResScanData(trialData):
+    """
+    This class holds information about the high-resolution scan for a brain
+    """
+
+    def __init__(self, brainIndex=None, index=None, dataFile=None, info=None, name=None):
+        # The properties of a trial are stored here
+        # Add more properties as appropriate
+
+        trialData.__init__(self, brainIndex=None, index=None, dataFile=None, info=None, name=None)
+
+        # The index of the brain belongs to in the project
+        if brainIndex is None:
+            self.brainIndex = None
+        else:
+            self.brainIndex = brainIndex
+
+        # The index of the trial
+        if index is None:
+            self.index = None
+        else:
+            self.index = index
+
+        # The location of the .lsm file
+        if dataFile is None:
+            self.dataFile = None
+        else:
+            self.dataFile = dataFile
+
+        # Trial name (by default, this should be the .lsm file name
+        if name is None:
+            self.name = 'High-resolution Scan'
+        else:
+            self.name = name
+
+        if info is None:
+            self.info = {'dimX': 'N/A', 'dimY': 'N/A', 'dimZ': 'N/A', 'dimC': 'N/A', 'dimT': 'N/A', 'voxSizeX': 'N/A',
+                         'voxSizeY': 'N/A', 'voxSizeZ': 'N/A', 'specScan': 'N/A', 'bitDepth': 'N/A'}
+        else:
+            self.info = info
+
+        # The stimulus identity
+        self.stimulusID = None
+
+        # The transforms
+        self.transforms = []
+
+        # The VOI data
+        self.VOIdata = []
+
+        def copy(self):
+            newt = highResScanData()
+
+            d = self.__dict__
+            for k in d.keys():
+                if k == 'transforms':
+                    attr = self.__getattribute__(k)
+                    for t in attr:
+                        newt.transforms.append(t.copy())
+                else:
+                    newt.__setattr__(k, copy.deepcopy(self.__getattribute__(k)))
+
+            return newt

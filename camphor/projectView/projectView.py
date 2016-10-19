@@ -3,6 +3,13 @@ from PyQt4.QtCore import Qt
 import os
 import numpy
 
+## Some constants
+BRAIN_ITEM_TYPE = QtGui.QStandardItem.UserType+1
+TRIAL_ITEM_TYPE = QtGui.QStandardItem.UserType+2
+HIGHRESSCAN_ITEM_TYPE = QtGui.QStandardItem.UserType+3
+TRANSFORM_ITEM_TYPE = QtGui.QStandardItem.UserType+4
+DESC_ITEM_TYPE = QtGui.QStandardItem.UserType+5
+
 class projectView(QtGui.QTreeView):
     """
     This class implements the tree view for a project
@@ -58,6 +65,10 @@ class projectView(QtGui.QTreeView):
             for j in range(project.brain[i].nTrials):
                 self.appendTrial(trial=project.brain[i].trial[j])
 
+            if project.brain[i].highResScan is not None:
+                self.appendHighResScan(highResScan=project.brain[i].highResScan)
+
+
     def appendBrain(self, brain):
         item = brainItem("Brain {:d}".format(brain.index + 1), brainIndex=brain.index)
         self.model.appendRow(item)
@@ -69,6 +80,13 @@ class projectView(QtGui.QTreeView):
         for k in trial.transforms:
             tItem.appendRow(transformItem(k, brainIndex=trial.brainIndex, trialIndex=trial.index))
         brainItem = self.model.item(trial.brainIndex)
+        brainItem.appendRow(tItem)
+
+    def appendHighResScan(self, highResScan):
+        tItem = highResScanItem(highResScan.name, brainIndex=highResScan.brainIndex)
+        for k in highResScan.transforms:
+            tItem.appendRow(transformItem(k, brainIndex=highResScan.brainIndex, trialIndex=-1))
+        brainItem = self.model.item(highResScan.brainIndex)
         brainItem.appendRow(tItem)
 
     def updateSelf(self):
@@ -83,10 +101,14 @@ class projectView(QtGui.QTreeView):
         item = self.model.itemFromIndex(index)
 
         # Takes appropriate action
-        if item.column() == 0 and item.type() == QtGui.QStandardItem.UserType+2:
+        if item.column() == 0 and item.type() == TRIAL_ITEM_TYPE:
             # The item is a trial item => load the data in camphor
             brain = item.brain
             self.camphor.openFileFromProject(brain=item.brain, trial=item.trial, view=1)
+        elif item.column() == 0 and item.type() == HIGHRESSCAN_ITEM_TYPE:
+            # The item is a trial item => load the data in camphor
+            brain = item.brain
+            self.camphor.openFileFromProject(brain=item.brain, trial=-1, view=1)
 
     def click_callback(self, index):
         """
@@ -96,7 +118,7 @@ class projectView(QtGui.QTreeView):
         item = self.model.itemFromIndex(index)
 
         # Takes appropriate action
-        if item.column() == 0 and item.type() == QtGui.QStandardItem.UserType + 3:
+        if item.column() == 0 and item.type() == TRANSFORM_ITEM_TYPE:
             # The item is a filter item => check the state
             item.transform.active = (item.checkState()>0)
 
@@ -110,11 +132,50 @@ class projectView(QtGui.QTreeView):
             type = [i.type() for i in item]
 
             # Checks if selected items are all trials
-            if all(numpy.array(column) == 0) and all(numpy.array(type) == QtGui.QStandardItem.UserType + 2):
+            if all(numpy.array(column) == 0) and all(numpy.array(type) == TRIAL_ITEM_TYPE):
                 brain = [i.brain for i in item]
                 trial = [i.trial for i in item]
                 menu = allItemsContextMenu(self, brain, trial)
                 menu.exec_(self.viewport().mapToGlobal(position))
+
+            if len(item) == 1 and numpy.array(column) == 0 and numpy.array(type) == HIGHRESSCAN_ITEM_TYPE:
+                brain = item[0].brain
+                menu = HRSContextMenu(self, brain)
+                menu.exec_(self.viewport().mapToGlobal(position))
+
+    def getCurrentTrial(self):
+        """
+        getCurrentTrial()
+
+        Returns the currently selected brain and trial numbers
+        If there are multiple selected items, returns data for the first item only
+        If there are no items selected, returns (0,0)
+
+        :return: a (brain number, trial number) list
+        """
+
+        index = self.selectedIndexes()
+        if len(index) > 0:
+            item = self.model.itemFromIndex(index[0])
+            return (item.brain, item.trial)
+        else:
+            return (0,0)
+
+    def getCurrentBrain(self):
+        """
+        Returns the index of the currently selected brain
+        If there are multiple selected items, returns data for the first item only
+        If there are no items selected, returns 0
+
+        :return: the index of the currently selected brain as int
+        """
+
+        index = self.selectedIndexes()
+        if len(index) > 0:
+            item = self.model.itemFromIndex(index[0])
+            return item.brain
+        else:
+            return 0
 
 class allItemsContextMenu(QtGui.QMenu):
     def __init__(self, treeview, brain, trial):
@@ -157,15 +218,55 @@ class allItemsContextMenu(QtGui.QMenu):
         self.overlay.addAction(self.overlayAction1)
         self.overlay.addAction(self.overlayAction2)
 
+        self.overlayHRS= QtGui.QMenu('Overlay with high-res scan')
+        self.overlayHRS.setStatusTip('Overlays the selected trials with the high-resolution scan in the specified view')
+        self.overlayHRSAction1 = QtGui.QAction('In view 1', self)
+        self.overlayHRSAction2 = QtGui.QAction('In view 2', self)
+        self.overlayHRSAction1.triggered.connect(lambda x: treeview.camphor.overlayHRS(brain, trial, view=1))
+        self.overlayHRSAction2.triggered.connect(lambda x: treeview.camphor.overlayHRS(brain, trial, view=2))
+        self.overlayHRS.addAction(self.overlayHRSAction1)
+        self.overlayHRS.addAction(self.overlayHRSAction2)
+
+        self.eraseTrial = QtGui.QAction('Erase selected trial(s)', self)
+        self.eraseTrial.setStatusTip('Erase selected trial(s)')
+        self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain,trial))
+
         if(len(brain)==1):
             self.addAction(self.loadInView1)
             self.addAction(self.loadInView2)
             self.addMenu(self.showtDiff)
+            self.addMenu(self.overlayHRS)
         elif(len(brain)==2):
             self.addMenu(self.showDiff)
             self.addMenu(self.overlay)
 
-        # self.addSeparator()
+        self.addSeparator()
+        self.addAction(self.eraseTrial)
+
+class HRSContextMenu(QtGui.QMenu):
+    def __init__(self, treeview, brain):
+        super(HRSContextMenu, self).__init__()
+
+        self.loadInView1 = QtGui.QAction('Load in view 1', self)
+        self.loadInView1.setStatusTip('Load in VTK view #1')
+        self.loadInView1.triggered.connect(
+            lambda x: treeview.camphor.openFileFromProject(brain=brain, trial=-1, view=1))
+
+        self.loadInView2 = QtGui.QAction('Load in view 2', self)
+        self.loadInView2.setStatusTip('Load in VTK view #2')
+        self.loadInView2.triggered.connect(
+            lambda x: treeview.camphor.openFileFromProject(brain=brain, trial=-1, view=2))
+
+
+        self.eraseTrial = QtGui.QAction('Remove from project', self)
+        self.eraseTrial.setStatusTip('Remove from project')
+        self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain, -1))
+
+
+        self.addAction(self.loadInView1)
+        self.addAction(self.loadInView2)
+        self.addSeparator()
+        self.addAction(self.eraseTrial)
             
 
 
@@ -186,7 +287,7 @@ class brainItem(QtGui.QStandardItem):
         return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
 
     def type(self):
-        return QtGui.QStandardItem.UserType+1
+        return BRAIN_ITEM_TYPE
 
 class trialItem(QtGui.QStandardItem):
     """
@@ -204,7 +305,25 @@ class trialItem(QtGui.QStandardItem):
         return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
 
     def type(self):
-        return QtGui.QStandardItem.UserType+2
+        return TRIAL_ITEM_TYPE
+
+class highResScanItem(QtGui.QStandardItem):
+    """
+    class projectView.trialItem
+
+    Tree item template for imaging trials
+    """
+    def __init__(self, name, brainIndex):
+        super(highResScanItem, self).__init__(name)
+        self.setEditable(False)
+        self.brain = brainIndex
+        self.    setIcon(QtGui.QIcon('res/icons/highResScan_12x12-01.png'))
+
+    def flags(self):
+        return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
+
+    def type(self):
+        return HIGHRESSCAN_ITEM_TYPE
 
 class transformItem(QtGui.QStandardItem):
     """
@@ -225,7 +344,7 @@ class transformItem(QtGui.QStandardItem):
         return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
 
     def type(self):
-        return QtGui.QStandardItem.UserType+3
+        return TRANSFORM_ITEM_TYPE
 
 class descItem(QtGui.QStandardItem):
     """
@@ -242,8 +361,11 @@ class descItem(QtGui.QStandardItem):
         return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
 
     def type(self):
-        return QtGui.QStandardItem.UserType+3
+        return DESC_ITEM_TYPE
 
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
 
 class projectModel(QtCore.QAbstractItemModel):
     """

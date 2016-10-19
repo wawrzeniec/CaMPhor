@@ -123,19 +123,19 @@ def makeProjectToolbar(self):
     self.addBrainAction.triggered.connect(self.addBrain)
     self.projectToolBar.addAction(self.addBrainAction)
 
-    # self.addTrialAction = QtGui.QAction('Add New Trial', self)
-    # self.addTrialAction.setIcon(utils.createTextIcon(""))
-    # self.addTrialAction.setCheckable(False)
-    # self.addTrialAction.setShortcut('Ctrl+T')
-    # self.addTrialAction.setStatusTip('Add a new trial to the current brain')
-    # self.addTrialAction.triggered.connect(self.addTrial)
-    # self.projectToolBar.addAction(self.addTrialAction)
+    self.addTrialAction = QtGui.QAction('Add New Trial', self)
+    self.addTrialAction.setIcon(utils.createTextIcon(""))
+    self.addTrialAction.setCheckable(False)
+    self.addTrialAction.setShortcut('Ctrl+T')
+    self.addTrialAction.setStatusTip('Add a new trial to the current brain (Shift+Click to add high-resolution scan)')
+    self.addTrialAction.triggered.connect(self.addTrial)
+    self.projectToolBar.addAction(self.addTrialAction)
 
     c = self.projectToolBar.children()
     self.addBrainButton = c[3]
-    # self.addTrialButton = c[4]
+    self.addTrialButton = c[4]
     c[3].setObjectName('addBrain')
-    # c[4].setObjectName('addTrial')
+    c[4].setObjectName('addTrial')
 
     self.projectToolBar.setStyleSheet("""
                                         QToolButton {width: 16px; height: 16px;
@@ -148,8 +148,9 @@ def makeProjectToolbar(self):
                                         image: url('res/icons/newBrain_16x16-01.png');}
 
                                         QToolButton#addTrial {width: 16px; height: 16px;
-                                        image: url('res/icons/newTrial_16x16-01.png');}
+                                        image: url('res/icons/newTrial2_16x16-01.png');}
 
                                         QToolButton::hover {background: #CCC;}
                                         QToolButton::pressed {background: #ACF; border: 1px solid #ACF; border-radius: 2px;}
                                         """)
+

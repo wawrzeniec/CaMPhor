@@ -121,6 +121,9 @@ def serializeProject(project, progressDialog=None):
     for i in range(project.nBrains):
         tmp = serializeTransforms(project.brain[i].transforms)
         newProject.brain[i].transforms = tmp
+        if project.brain[i].highResScan is not None:
+            tmp = serializeTransforms(project.brain[i].highResScan.transforms)
+            newProject.brain[i].highResScan.transforms = tmp
         for j in range(project.brain[i].nTrials):
             if progressDialog is not None:
                 progressDialog.setLabelText('Serializing brain {:d}/trial {:d}'.format(i+1, j+1))
@@ -167,6 +170,11 @@ def deserializeProject(project, progressDialog=None):
 
     for i in range(project.nBrains):
         newProject.brain[i].transforms = deserializeTransforms(project.brain[i].transforms)
+        if hasattr(project.brain[i], 'highResScan'):
+            if newProject.brain[i].highResScan is not None:
+                newProject.brain[i].highResScan.transforms = deserializeTransforms(project.brain[i].highResScan.transforms)
+        else:
+            newProject.brain[i].highResScan = None
         for j in range(project.brain[i].nTrials):
             if progressDialog is not None:
                 progressDialog.setLabelText('Deserializing brain {:d}/trial {:d}'.format(i+1, j+1))
