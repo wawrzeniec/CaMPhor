@@ -144,7 +144,10 @@ class brainData:
                     newb.trial.append(t.copy())
             elif k == 'highResScan':
                 attr = self.__getattribute__(k)
-                newb.highResScan = attr.copy()
+                if attr is not None:
+                    newb.highResScan = attr.copy()
+                else:
+                    newb.highResScan = None
             else:
                 newb.__setattr__(k, copy.deepcopy(self.__getattribute__(k)))
 
@@ -201,6 +204,7 @@ class trialData:
 
         # The VOI data
         self.VOIdata = []
+        self.VOIpval = []
 
     def copy(self):
         newt = trialData()

@@ -3,6 +3,7 @@ from camphor import utils
 from camphor.vtkView import vtkView
 from camphor.projectView import projectView
 from camphor.registration import regTools
+from camphor.VOI import VOITools
 
 def makeLayout(self):
     # Creates some Qt actions (menus, toolbar buttons, etc)
@@ -90,6 +91,9 @@ def makeLayout(self):
     # The registration tools widget
     self.regTools = regTools.regTools(parent=self)
 
+    # The VOI extraction widget
+    self.VOITools = VOITools.VOITools(parent=self)
+
     # Arranges the objects in a layout
     self.mainWidget = QtGui.QWidget()
     self.layout = QtGui.QHBoxLayout()
@@ -106,7 +110,7 @@ def makeLayout(self):
 
     # Adds the registration tools widget
     self.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.regTools)
-
+    self.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.VOITools)
 
     # Starts the rendering
     self.vtkView.start()
