@@ -4,7 +4,6 @@ import camphor.DataIO as DataIO
 from scipy import stats
 from scipy import ndimage
 import copy
-from PyQt4 import QtCore, QtGui
 
 """
 This filter attempts to find VOIs using the following procedure:
@@ -49,7 +48,13 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
                 self.message('Computing p-values (brain {:d}/{:d}, trial {:d}/{:d})'.format(b+1,nBrains,t+1,nTrials), progress=100 * self.nDone / self.nTotal)
 
                 camphor.openFileFromProject(brain=b, trial=t, view=0)
+
                 data = camphor.rawData
+                transforms = camphor.project.brain[b].trial[t].transforms
+                for tr in transforms:
+                    if (tr.active):
+                        data = tr.apply(data)
+
                 lx, ly, lz = data[0].shape
 
                 voi = numpy.zeros([lx, ly, lz])
@@ -65,7 +70,7 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
                             npixdone += 1
                         self.message(
                             'Computing p-values (brain {:d}/{:d}, trial {:d}/{:d})'.format(
-                            b + 1, nBrains, t + 1,nTrials),
+                            b + 1, nBrains, t + 1, nTrials),
                             progress=100 * (self.nDone+0.99*npixdone/nttests) / self.nTotal)
                         if self.cancelled:
                             self.cancelled = False
@@ -113,24 +118,9 @@ class tTestConvolutionThresholdParameters(object):
                            'cubeSize': ['int', 1, 100, 1],
                            'fThresh': ['int', 1, 1000, 1]}
 
-        self.controls = {'fThresh': ['int', 1, 'cubeSize**3', 1, 'slider'],
+        self._controls = {'fThresh': ['int', 1, 'cubeSize**3', 1, 'slider'],
                          'cubeSize': ['int', 1, 100, 1, 'spinbox']}
 
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
 filter = tTestConvolutionThreshold
-
-class controlPanelWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        super(controlPanelWidget, self).__init__()
-        self.setWindowFlags(QtCore.Qt.Tool)
-        self.parent = parent
-        self.parameters = self.parent.parameters
-        self.initUI()
-
-    def initUI(self):
-        self.layout = QtGui.QFormLayout()
-
-        for i, param in enumerate(self.parameters.controls):
-            # For each control parameter, constructs an associated control
-            pass
 

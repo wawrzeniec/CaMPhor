@@ -382,6 +382,22 @@ class camphor(QtGui.QMainWindow):
         resampled_template = resample.Execute(fixed_image)
         return sitk.GetArrayFromImage(resampled_template).astype(numpy.uint8)
 
+    def overlayVOIHRS(self, brain, trial, view):
+        """
+        camphorapp.overlayVOIHRS(brain, trial, view)
+        This function overlays the VOIs of a single target trial on top of the high-resolution scan
+        If the filter that has been used to extract the VOIs (the VOIfilter object of the target trialData object)
+        allows for a control widget, this also spawns the control widget and passes it to vtkView so that it
+        can be destroyed when new data is created
+
+        :param brain: brain index of the target trial (as list)
+        :param trial:  trial index of the target trial (as list)
+        :param view: index of the vtkView in which to display the data
+        :return: nothing
+        """
+        VOIdata = self.project.brain[brain[0]].trial[trial[0]].VOIdata
+
+
 ##################################
 #########       main () ##########
 ##################################

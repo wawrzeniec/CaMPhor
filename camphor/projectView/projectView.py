@@ -63,7 +63,8 @@ class projectView(QtGui.QTreeView):
         for i in range(project.nBrains):
             self.appendBrain(project.brain[i])
             for j in range(project.brain[i].nTrials):
-                self.appendTrial(trial=project.brain[i].trial[j])
+                hasVOI = project.brain[i].trial[j].VOIdata != []
+                self.appendTrial(trial=project.brain[i].trial[j], hasVOI=hasVOI)
 
             if project.brain[i].highResScan is not None:
                 self.appendHighResScan(highResScan=project.brain[i].highResScan)
@@ -75,8 +76,10 @@ class projectView(QtGui.QTreeView):
         index = self.model.indexFromItem(item)
         self.expand(index)
 
-    def appendTrial(self, trial):
+    def appendTrial(self, trial, hasVOI=False):
         tItem = trialItem(trial.name, brainIndex=trial.brainIndex, trialIndex=trial.index)
+        if hasVOI:
+            tItem.setIcon(QtGui.QIcon('res/icons/hasVOI_12x12-01.png'))
         for k in trial.transforms:
             tItem.appendRow(transformItem(k, brainIndex=trial.brainIndex, trialIndex=trial.index))
         brainItem = self.model.item(trial.brainIndex)
@@ -209,7 +212,7 @@ class allItemsContextMenu(QtGui.QMenu):
         self.showtDiff.addAction(self.showtDiffAction1)
         self.showtDiff.addAction(self.showtDiffAction2)
 
-        self.overlay = QtGui.QMenu('Overlay')
+        self.overlay = QtGui.QMenu('Overlay selected trials')
         self.overlay.setStatusTip('Overlays the selected trials in the specified view')
         self.overlayAction1 = QtGui.QAction('In view 1', self)
         self.overlayAction2 = QtGui.QAction('In view 2', self)
@@ -219,13 +222,32 @@ class allItemsContextMenu(QtGui.QMenu):
         self.overlay.addAction(self.overlayAction2)
 
         self.overlayHRS= QtGui.QMenu('Overlay with high-res scan')
-        self.overlayHRS.setStatusTip('Overlays the selected trials with the high-resolution scan in the specified view')
+        self.overlayHRS.setStatusTip('Overlays the selected trial with the high-resolution scan in the specified view')
         self.overlayHRSAction1 = QtGui.QAction('In view 1', self)
         self.overlayHRSAction2 = QtGui.QAction('In view 2', self)
         self.overlayHRSAction1.triggered.connect(lambda x: treeview.camphor.overlayHRS(brain, trial, view=1))
         self.overlayHRSAction2.triggered.connect(lambda x: treeview.camphor.overlayHRS(brain, trial, view=2))
         self.overlayHRS.addAction(self.overlayHRSAction1)
         self.overlayHRS.addAction(self.overlayHRSAction2)
+
+        self.overlayVOIHRS= QtGui.QMenu('Overlay VOIs with high-res scan')
+        self.overlayVOIHRS.setStatusTip("Overlays the selected trial's VOIs with the high-resolution scan in the specified view")
+        self.overlayVOIHRSAction1 = QtGui.QAction('In view 1', self)
+        self.overlayVOIHRSAction2 = QtGui.QAction('In view 2', self)
+        self.overlayVOIHRSAction1.triggered.connect(lambda x: treeview.camphor.overlayVOIHRS(brain, trial, view=1))
+        self.overlayVOIHRSAction2.triggered.connect(lambda x: treeview.camphor.overlayVOIHRS(brain, trial, view=2))
+        self.overlayVOIHRS.addAction(self.overlayVOIHRSAction1)
+        self.overlayVOIHRS.addAction(self.overlayVOIHRSAction2)
+
+        self.overlayVOIs = QtGui.QMenu('Overlay VOIs of selected trials')
+        self.overlayVOIs.setStatusTip(
+            "Overlays the selected trials' VOIs in the specified view")
+        self.overlayVOIsAction1 = QtGui.QAction('In view 1', self)
+        self.overlayVOIsAction2 = QtGui.QAction('In view 2', self)
+        self.overlayVOIsAction1.triggered.connect(lambda x: treeview.camphor.overlayVOIs(brain, trial, view=1))
+        self.overlayVOIsAction2.triggered.connect(lambda x: treeview.camphor.overlayVOIs(brain, trial, view=2))
+        self.overlayVOIs.addAction(self.overlayVOIHRSAction1)
+        self.overlayVOIs.addAction(self.overlayVOIHRSAction2)
 
         self.eraseTrial = QtGui.QAction('Erase selected trial(s)', self)
         self.eraseTrial.setStatusTip('Erase selected trial(s)')
@@ -235,10 +257,28 @@ class allItemsContextMenu(QtGui.QMenu):
             self.addAction(self.loadInView1)
             self.addAction(self.loadInView2)
             self.addMenu(self.showtDiff)
-            self.addMenu(self.overlayHRS)
+            hasVOI = treeview.camphor.project.brain[brain[0]].trial[trial[0]].VOIdata != []
+            hasHRS = treeview.camphor.project.brain[brain[0]].highResScan is not None
+            if hasHRS:
+                self.addSeparator()
+                self.addMenu(self.overlayHRS)
+                if hasVOI:
+                    self.addMenu(self.overlayVOIHRS)
         elif(len(brain)==2):
             self.addMenu(self.showDiff)
+            self.addSeparator()
             self.addMenu(self.overlay)
+            allhasVOI = True
+            for i in range(len(brain)):
+                allhasVOI = allhasVOI and treeview.camphor.project.brain[brain[i]].trial[trial[i]].VOIdata != []
+            if allhasVOI:
+                self.addMenu(self.overlayVOIs)
+        else:
+            allhasVOI = True
+            for i in range(len(brain)):
+                allhasVOI = allhasVOI and treeview.camphor.project.brain[brain[i]].trial[trial[i]].VOIdata != []
+            if allhasVOI:
+                self.addMenu(self.overlayVOIs)
 
         self.addSeparator()
         self.addAction(self.eraseTrial)
@@ -317,7 +357,7 @@ class highResScanItem(QtGui.QStandardItem):
         super(highResScanItem, self).__init__(name)
         self.setEditable(False)
         self.brain = brainIndex
-        self.    setIcon(QtGui.QIcon('res/icons/highResScan_12x12-01.png'))
+        self.setIcon(QtGui.QIcon('res/icons/highResScan_12x12-01.png'))
 
     def flags(self):
         return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled

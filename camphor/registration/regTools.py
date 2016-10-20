@@ -4,6 +4,7 @@ from PyQt4.QtCore import Qt
 import os
 import importlib
 from functools import partial
+
 class regTools(QtGui.QDockWidget):
     """
     This class implements the registration tools widget
@@ -134,7 +135,6 @@ class regTools(QtGui.QDockWidget):
                     w.setValue(params[j])
                     w.valueChanged.connect(partial(self.setParamNumeric, j))
                     paramLayout.addRow(QtGui.QLabel(j), w)
-
                 elif paramType[j][0] is 'list':
                     w = QtGui.QComboBox()
                     itemValue = paramType[j][1]

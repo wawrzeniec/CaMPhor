@@ -498,10 +498,8 @@ class vtkView(QtGui.QFrame):
         self.setTimeSlice()
 
         # Updates the view
-        self.renderer.ResetCamera()
-        self.sliceRenderer.ResetCamera()
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.resetAll()
+        self.renderAll()
 
     def initPlane(self,lx,ly,lz):
         """
@@ -605,10 +603,7 @@ class vtkView(QtGui.QFrame):
             self.zlabel.setText("x:{:d}".format(z))
 
         # Updates the view
-        self.renderer.ResetCamera()
-        self.sliceRenderer.ResetCamera()
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.renderAll()
 
     def setPlaneOrientation(self, orientation, coordinate=None):
         """
@@ -975,12 +970,18 @@ class vtkView(QtGui.QFrame):
 
 
         # Updates the view
-        self.renderer.ResetCamera()
-        self.sliceRenderer.ResetCamera()
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.resetAll()
+        self.renderAll()
 
         self.colormap = colormap
+
+    def resetAll(self):
+        self.renderer.ResetCamera()
+        self.sliceRenderer.ResetCamera()
+
+    def renderAll(self):
+        self.renwin.Render()
+        self.slicerenwin.Render()
 
     def plotdF(self, interactor, event):
         """
