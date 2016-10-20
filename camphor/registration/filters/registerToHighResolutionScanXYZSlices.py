@@ -101,6 +101,31 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
         slicesDone = 0
         for i, d in enumerate(data):
             sliceTransform = []
+
+            # Resamples
+            fixed_image = sitk.GetImageFromArray(template.astype(numpy.double)) # template is passed as double already so no need to cast
+            moving_image = sitk.GetImageFromArray(d.astype(numpy.double))
+
+            print(fixed_image.GetSize())
+            lxf, lyf, lzf = fixed_image.GetSize()
+            lxm, lym, lzm = moving_image.GetSize()
+            moving_image.SetSpacing((lxf/lxm,lyf/lym,lzf/lzm))
+
+            # First we need to resample the data to match the dimensions of the template
+            resampled_image = sitk.Image(fixed_image.GetSize(), fixed_image.GetPixelIDValue())
+            resampled_image.SetSpacing((1,1,1))
+            resampled_image.SetOrigin(fixed_image.GetOrigin())
+            resampled_image.SetDirection(fixed_image.GetDirection())
+
+            # Resample original image using identity transform and the BSpline interpolator.
+            resample = sitk.ResampleImageFilter()
+            resample.SetReferenceImage(resampled_image)
+            resample.SetInterpolator(sitk.sitkBSpline)
+            resample.SetTransform(sitk.Transform())
+            resampled_image = resample.Execute(moving_image)
+
+            d = sitk.GetArrayFromImage(resampled_image)
+
             for curAxis in range(3):
                 for curSlice in range(nSlices[curAxis]):
                     if curAxis == 0:
@@ -112,26 +137,6 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
                     elif curAxis == 2:
                         fixed_image = sitk.GetImageFromArray(template[:, :, curSlice].astype(numpy.double))
                         moving_image = sitk.GetImageFromArray(d[:, :, curSlice].astype(numpy.double))
-
-                    # resamples the moving image to the dimensions of the template
-                    lxf, lyf, lzf = fixed_image.GetSize()
-                    lxm, lym, lzm = moving_image.GetSize()
-                    moving_image.SetSpacing((lxf / lxm, lyf / lym, lzf / lzm))
-
-                    # First we need to resample the data to match the dimensions of the template
-                    resampled_image = sitk.Image(fixed_image.GetSize(), fixed_image.GetPixelIDValue())
-                    resampled_image.SetSpacing((1, 1, 1))
-                    resampled_image.SetOrigin(fixed_image.GetOrigin())
-                    resampled_image.SetDirection(fixed_image.GetDirection())
-
-                    # Resample original image using identity transform and the BSpline interpolator.
-                    resample = sitk.ResampleImageFilter()
-                    resample.SetReferenceImage(resampled_image)
-                    resample.SetInterpolator(sitk.sitkBSpline)
-                    resample.SetTransform(sitk.Transform())
-                    resampled_image = resample.Execute(moving_image)
-
-                    moving_image = resampled_image
 
                     initial_transform = sitk.CenteredTransformInitializer(fixed_image,
                                                                           moving_image,
@@ -213,10 +218,10 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
         progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
-        progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
-        self.progress = progress.percentDone
+        progress.percentDone = self.percentDone
+        progress.totalPercentDone = (self.nDone + self.percentDone/100)/self.nTotal*100
         return progress
+
 
 class registerToHighResolutionScanXYZSlicesParameters(object):
     def __init__(self):
