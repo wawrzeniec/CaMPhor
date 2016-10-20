@@ -8,6 +8,7 @@ import os
 import datetime
 import numpy
 import SimpleITK as sitk
+from vtk import vtkObject
 
 class camphor(QtGui.QMainWindow):
     """
@@ -37,6 +38,7 @@ class camphor(QtGui.QMainWindow):
 
     def initUI(self):
         # Here we create the GUI; the code is in a separate module
+        vtkObject.GlobalWarningDisplayOff() # disables the VTK output window
         guiLayout.makeLayout(self)
 
         # Displays ready in the status ar
@@ -225,7 +227,7 @@ class camphor(QtGui.QMainWindow):
     def eraseTrials(self, brain, trial):
         if trial==-1:
             # This means remove the high-resolution scan
-            self.project.brain[brain].highResScan = []
+            self.project.brain[brain].highResScan = None
             self.projectView.setProject(self.project)
         else:
             self.project.eraseTrials(brain,trial)
@@ -334,6 +336,30 @@ class camphor(QtGui.QMainWindow):
                 newpath = os.path.join(regDir,newname)
                 DataIO.saveImageSeries(d,newpath)
 
+    def saveRegisteredHRS(self):
+        for brain in range(self.project.nBrains):
+            # Checks if directory exists
+            regDir = os.path.join(self.project.brain[brain].directory,'.registered' + datetime.date.today().isoformat())
+            if not os.path.exists(regDir):
+                os.mkdir(regDir)
+            regDir = os.path.join(self.project.brain[brain].directory,
+                                  '.registered' + datetime.date.today().isoformat(),'highresScan')
+            if not os.path.exists(regDir):
+                os.mkdir(regDir)
+
+            if self.project.brain[brain].highResScan is not None:
+                self.openFileFromProject(brain=brain,trial=-1,view=0)
+                d = numpy.copy(self.rawData,order='C')
+                for t in self.project.brain[brain].highResScan.transforms:
+                    if t.active:
+                        d = t.apply(d)
+
+                tname = self.project.brain[brain].highResScan.name
+                tnamesplit = os.path.splitext(tname)
+                newname = tnamesplit[0] + '.registered.tif'
+                newpath = os.path.join(regDir,newname)
+                DataIO.saveImageSeries(d,newpath)
+
     def resampleData(self, data, template, size):
         fixed_image = sitk.GetImageFromArray(data.astype(numpy.double))
         moving_image = sitk.GetImageFromArray(template.astype(numpy.double))
@@ -351,7 +377,7 @@ class camphor(QtGui.QMainWindow):
         # Resample original image using identity transform and the BSpline interpolator.
         resample = sitk.ResampleImageFilter()
         resample.SetReferenceImage(resampled_template)
-        resample.SetInterpolator(sitk.sitkBSpline)
+        resample.SetInterpolator(sitk.sitkLinear)
         resample.SetTransform(sitk.Transform())
         resampled_template = resample.Execute(fixed_image)
         return sitk.GetArrayFromImage(resampled_template).astype(numpy.uint8)

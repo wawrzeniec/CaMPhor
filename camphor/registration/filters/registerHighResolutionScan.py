@@ -16,8 +16,6 @@ class registerHighResolutionScan(camphorRegistrationMethod):
         self._parameters = registerHighResolutionScanParameters()
         self.nDone = 0
         self.nTotal = 1
-        self.curFrame = 0
-        self.nFrames = 1
 
     @property
     def parameters(self):
@@ -197,7 +195,7 @@ class registerHighResolutionScan(camphorRegistrationMethod):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
         progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
+        progress.percentDone = 100 * progress.iteration / self.parameters.numberOfIterations
         progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
         self.progress = progress.percentDone
         return progress
@@ -209,7 +207,7 @@ class registerHighResolutionScanParameters(object):
         self.convergenceMinimumValue = 1e-6
         self.convergenceWindowSize = 20
         self.estimateLearningRate = sitk.ImageRegistrationMethod.EachIteration
-        self.maximumStepSizeInPhysicalUnits = 0.01
+        self.maximumStepSizeInPhysicalUnits = 0.1
 
         self._paramType = {'learningRate': ['doubleg', 1e-20, 1000, 1e-1],
                            'numberOfIterations': ['int', 1, 1e+6, 1],

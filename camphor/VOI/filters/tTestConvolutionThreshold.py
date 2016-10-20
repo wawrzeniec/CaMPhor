@@ -3,6 +3,8 @@ import numpy
 import camphor.DataIO as DataIO
 from scipy import stats
 from scipy import ndimage
+import copy
+from PyQt4 import QtCore, QtGui
 
 """
 This filter attempts to find VOIs using the following procedure:
@@ -80,6 +82,7 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
 
                 camphor.project.brain[b].trial[t].VOIdata = q3.copy(order='C')
                 camphor.project.brain[b].trial[t].VOIpval = voi.copy(order='C')
+                camphor.project.brain[b].trial[t].VOIfilter = copy.deepcopy(self)
 
                 if self.cancelled:
                     self.cancelled = False
@@ -98,6 +101,8 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
 
         return progress
 
+
+
 class tTestConvolutionThresholdParameters(object):
     def __init__(self):
         self.pThresh = 0.05
@@ -108,6 +113,24 @@ class tTestConvolutionThresholdParameters(object):
                            'cubeSize': ['int', 1, 100, 1],
                            'fThresh': ['int', 1, 1000, 1]}
 
+        self.controls = {'fThresh': ['int', 1, 'cubeSize**3', 1, 'slider'],
+                         'cubeSize': ['int', 1, 100, 1, 'spinbox']}
+
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
 filter = tTestConvolutionThreshold
+
+class controlPanelWidget(QtGui.QWidget):
+    def __init__(self, parent):
+        super(controlPanelWidget, self).__init__()
+        self.setWindowFlags(QtCore.Qt.Tool)
+        self.parent = parent
+        self.parameters = self.parent.parameters
+        self.initUI()
+
+    def initUI(self):
+        self.layout = QtGui.QFormLayout()
+
+        for i, param in enumerate(self.parameters.controls):
+            # For each control parameter, constructs an associated control
+            pass
 

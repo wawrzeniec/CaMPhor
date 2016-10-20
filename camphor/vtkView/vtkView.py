@@ -1220,6 +1220,18 @@ class vtkView(QtGui.QFrame):
         self.colorMaps['Overlay'] = [o1,o2]
         self.sliceColorMaps['Overlay'] = [o1,o2]
 
+        o1 = vtk.vtkColorTransferFunction()
+        o1.SetColorSpaceToRGB()
+        o2 = vtk.vtkColorTransferFunction()
+        o2.SetColorSpaceToRGB()
+        o1.AddRGBPoint(0, 0.0, 0.0, 0.0)
+        o1.AddRGBPoint(1, 0.1, 0.0, 0.1)
+        o1.AddRGBPoint(128, 1.0, 0.0, 1.0)
+        o2.AddRGBPoint(0, 0.0, 0.0, 0.0)
+        o2.AddRGBPoint(1, 0.0, 0.1, 0.0)
+        o2.AddRGBPoint(128, 0.0, 1.0, 0.0)
+
+
         # Lookup tables
         t = vtk.vtkLookupTable()
         t.SetRange(0, 255)

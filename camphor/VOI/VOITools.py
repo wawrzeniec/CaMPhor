@@ -120,7 +120,7 @@ class VOITools(QtGui.QDockWidget):
         paramType = f.parameters._paramType
         paramLayout = QtGui.QFormLayout()
         for i, j in enumerate(params):
-            if j is not '_paramType':
+            if j is not '_paramType' and j is not 'controls':
                 if paramType[j][0] is 'double':
                     w = QtGui.QDoubleSpinBox()
                     w.setRange(paramType[j][1], paramType[j][2])
@@ -157,6 +157,9 @@ class VOITools(QtGui.QDockWidget):
                     paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
                 else:
                     paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
+
+        # Controls
+
 
         return paramLayout
 

@@ -271,6 +271,9 @@ class highResScanData(trialData):
         # The VOI data
         self.VOIdata = []
 
+        # The VOI filter (this is used to display a command panel to adjust VOI thresholding parameters during VOi display)
+        self.VOIfilter = None
+
         def copy(self):
             newt = highResScanData()
 
