@@ -203,8 +203,10 @@ class trialData:
         self.transforms = []
 
         # The VOI data
-        self.VOIdata = []
-        self.VOIpval = []
+        self.VOIdata = None             # The location of VOIs (binary array scaled to 0-255)
+        self.VOIbase = None             # Base data for calculating VOI location - this can be used to recompute VOIs with different parameters post-hoc
+        self.VOIfilter = None           # The filter class used to compute VOIs - used to reinstantiate the filter when recomputing VOIs post-hoc
+        self.VOIfilterParams = None     # The filter parameters used to compute VOIs
 
     def copy(self):
         newt = trialData()

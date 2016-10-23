@@ -309,12 +309,12 @@ class camphor(QtGui.QMainWindow):
         trial = trial[0]
         data1 = DataIO.LSMLoad(self.project.brain[brain].trial[trial].dataFile)
         data2 = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
-        data2 = [data2[0][::-1,:,:] for i in range(len(data1))]
+        data2 = [data2[0][::-1,:,:].copy(order='C') for i in range(len(data1))]
         data1 = [self.resampleData(data1[i], data2[i], data2[i].shape) for i in range(len(data1))]
 
         transforms1 = self.project.brain[brain].trial[trial].transforms
         transforms2 = self.project.brain[brain].highResScan.transforms
-        fun(data1=data1,transforms1=transforms1,data2=data2,transforms2=transforms2)
+        fun(data1=data1,transforms1=transforms1,data2=data2,transforms2=transforms2, colormap='OverlayHRS')
 
     def saveRegistered(self):
         for brain in range(self.project.nBrains):
@@ -361,6 +361,7 @@ class camphor(QtGui.QMainWindow):
                 DataIO.saveImageSeries(d,newpath)
 
     def resampleData(self, data, template, size):
+        dataType = data.dtype
         fixed_image = sitk.GetImageFromArray(data.astype(numpy.double))
         moving_image = sitk.GetImageFromArray(template.astype(numpy.double))
 
@@ -380,7 +381,7 @@ class camphor(QtGui.QMainWindow):
         resample.SetInterpolator(sitk.sitkLinear)
         resample.SetTransform(sitk.Transform())
         resampled_template = resample.Execute(fixed_image)
-        return sitk.GetArrayFromImage(resampled_template).astype(numpy.uint8)
+        return sitk.GetArrayFromImage(resampled_template).astype(dataType)
 
     def overlayVOIHRS(self, brain, trial, view):
         """
@@ -395,8 +396,83 @@ class camphor(QtGui.QMainWindow):
         :param view: index of the vtkView in which to display the data
         :return: nothing
         """
-        VOIdata = self.project.brain[brain[0]].trial[trial[0]].VOIdata
 
+        brain = brain[0]
+        trial = trial[0]
+
+        f = self.project.brain[brain].trial[trial].VOIfilter()
+        f._parameters = self.project.brain[brain].trial[trial].VOIfilterParams
+
+        if view==1:
+            fun = self.vtkView.overlay
+            VOIpanel = self.vtkView.VOIpanel
+        elif view==2:
+            fun = self.vtkView2.overlay
+            VOIpanel = self.vtkView2.VOIpanel
+        else:
+            fun = self.vtkView.overlay
+            VOIpanel = self.vtkView.VOIpanel
+
+        VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
+        VOIbase = self.project.brain[brain].trial[trial].VOIbase
+        HRSdata = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
+        HRSdata = [HRSdata[0][::-1, :, :].copy(order='C')]
+        VOIdata = [self.resampleData(VOIdata, HRSdata[0], HRSdata[0].shape)]
+        VOIbase = self.resampleData(VOIbase, HRSdata[0], HRSdata[0].shape)
+
+        HRStransforms = self.project.brain[brain].highResScan.transforms
+        fun(data2=VOIdata, data1=HRSdata, transforms1=HRStransforms, colormap='OverlayVOI')
+
+        VOIpanel = f.controlWidget(self.vtkView, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        if view==1:
+            self.vtkView.VOIpanel= VOIpanel
+        elif view==2:
+            self.vtkView2.VOIpanel = VOIpanel
+        else:
+            self.vtkView.VOIpanel = VOIpanel
+
+    def overlayVOIs(self, brain, trial, view):
+        """
+        camphorapp.overlayVOIs(brain, trial, view)
+        This function overlays the VOIs of a any number of target trials in the specified view
+        If the filter that has been used to extract the VOIs (the VOIfilter object of the target trialData object)
+        allows for a control widget, this also spawns the control widget and passes it to vtkView so that it
+        can be destroyed when new data is created
+
+        :param brain: brain index of the target trial (as list)
+        :param trial:  trial index of the target trial (as list)
+        :param view: index of the vtkView in which to display the data
+        :return: nothing
+        """
+
+        f = [self.project.brain[i].trial[j].VOIfilter() for i,j in zip(brain,trial)]
+        for i in range(len(f)):
+            f[i]._parameters = self.project.brain[brain[i]].trial[trial[i]].VOIfilterParams
+
+        if view == 1:
+            fun = self.vtkView.overlay
+            VOIpanel = self.vtkView.VOIpanel
+        elif view == 2:
+            fun = self.vtkView2.overlay
+            VOIpanel = self.vtkView2.VOIpanel
+        else:
+            fun = self.vtkView.overlay
+            VOIpanel = self.vtkView.VOIpanel
+
+
+        VOIdata = [self.project.brain[i].trial[j].VOIdata.astype(numpy.uint8) for i,j, in zip(brain,trial)]
+        VOIbase = [self.project.brain[i].trial[j].VOIbase for i,j, in zip(brain,trial)]
+
+        fun(data1=[VOIdata[0]], data2=[VOIdata[1]], colormap='Overlay')
+
+        VOIpanel = [f[i].controlWidget(self.vtkView, VOIbase[i], VOIdata[i],
+                                    message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i])) for i in range(len(VOIdata))]
+        if view == 1:
+            self.vtkView.VOIpanel = VOIpanel
+        elif view == 2:
+            self.vtkView2.VOIpanel = VOIpanel
+        else:
+            self.vtkView.VOIpanel = VOIpanel
 
 ##################################
 #########       main () ##########

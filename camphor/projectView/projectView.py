@@ -63,7 +63,7 @@ class projectView(QtGui.QTreeView):
         for i in range(project.nBrains):
             self.appendBrain(project.brain[i])
             for j in range(project.brain[i].nTrials):
-                hasVOI = project.brain[i].trial[j].VOIdata != []
+                hasVOI = project.brain[i].trial[j].VOIdata is not None
                 self.appendTrial(trial=project.brain[i].trial[j], hasVOI=hasVOI)
 
             if project.brain[i].highResScan is not None:
@@ -246,8 +246,8 @@ class allItemsContextMenu(QtGui.QMenu):
         self.overlayVOIsAction2 = QtGui.QAction('In view 2', self)
         self.overlayVOIsAction1.triggered.connect(lambda x: treeview.camphor.overlayVOIs(brain, trial, view=1))
         self.overlayVOIsAction2.triggered.connect(lambda x: treeview.camphor.overlayVOIs(brain, trial, view=2))
-        self.overlayVOIs.addAction(self.overlayVOIHRSAction1)
-        self.overlayVOIs.addAction(self.overlayVOIHRSAction2)
+        self.overlayVOIs.addAction(self.overlayVOIsAction1)
+        self.overlayVOIs.addAction(self.overlayVOIsAction2)
 
         self.eraseTrial = QtGui.QAction('Erase selected trial(s)', self)
         self.eraseTrial.setStatusTip('Erase selected trial(s)')

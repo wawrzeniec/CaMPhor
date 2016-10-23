@@ -57,7 +57,7 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
 
                 lx, ly, lz = data[0].shape
 
-                voi = numpy.zeros([lx, ly, lz])
+                VOIbase = numpy.zeros([lx, ly, lz])
 
                 # 1. t-test
                 nttests = lx*ly*lz
@@ -66,7 +66,7 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
                     for j in range(ly):
                         for k in range(lz):
                             s = [data[t][i, j, k] for t in range(len(data))]
-                            tstat, voi[i, j, k] = stats.ttest_ind(s[0:2], s[4:7], equal_var=False)
+                            tstat, VOIbase[i, j, k] = stats.ttest_ind(s[0:2], s[3:5], equal_var=False)
                             npixdone += 1
                         self.message(
                             'Computing p-values (brain {:d}/{:d}, trial {:d}/{:d})'.format(
@@ -81,13 +81,13 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
                              b + 1, nBrains, t + 1, nTrials),
                              progress=100 * (self.nDone + 0.99) / self.nTotal)
 
-                q = numpy.less(voi, self.parameters.pThresh)
-                q2 = ndimage.convolve(q.astype(numpy.uint8), numpy.ones([self.parameters.cubeSize]*3))
-                q3 = (numpy.greater(q2, self.parameters.fThresh)* 255).astype(numpy.uint8)
+                VOIdata = numpy.zeros(VOIbase.shape, dtype=numpy.uint8)
+                self.computeVOIs(VOIbase, VOIdata)
 
-                camphor.project.brain[b].trial[t].VOIdata = q3.copy(order='C')
-                camphor.project.brain[b].trial[t].VOIpval = voi.copy(order='C')
-                camphor.project.brain[b].trial[t].VOIfilter = copy.deepcopy(self)
+                camphor.project.brain[b].trial[t].VOIdata = VOIdata
+                camphor.project.brain[b].trial[t].VOIbase = VOIbase
+                camphor.project.brain[b].trial[t].VOIfilter = self.__class__
+                camphor.project.brain[b].trial[t].VOIfilterParams = copy.deepcopy(self.parameters)
 
                 if self.cancelled:
                     self.cancelled = False
@@ -97,6 +97,13 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
                 self.nDone += 1
 
         self.message('VOI extraction completed', progress=100)
+
+    def computeVOIs(self, VOIbase, VOIdata):
+        print('computing VOIs')
+        q = numpy.less(VOIbase, self.parameters.pThresh)
+        q2 = ndimage.convolve(q.astype(numpy.uint8), numpy.ones([self.parameters.cubeSize] * 3))
+        q3 = (numpy.greater(q2, self.parameters.fThresh) * 128).astype(numpy.uint8)
+        VOIdata[:] = q3
 
     def getProgress(self):
         progress = camphorVOIExtractionProgress()
@@ -118,8 +125,9 @@ class tTestConvolutionThresholdParameters(object):
                            'cubeSize': ['int', 1, 100, 1],
                            'fThresh': ['int', 1, 1000, 1]}
 
-        self._controls = {'fThresh': ['int', 1, 'cubeSize**3', 1, 'slider'],
-                         'cubeSize': ['int', 1, 100, 1, 'spinbox']}
+        self._controls = {'pThresh': ['doubleg', 1e-20, 1, 1e-2, 'spinBox'],
+                          'fThresh': ['int', 1, 100, 1, 'slider'],
+                          'cubeSize': ['int', 1, 100, 1, 'spinBox']}
 
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
 filter = tTestConvolutionThreshold

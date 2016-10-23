@@ -59,6 +59,8 @@ class vtkView(QtGui.QFrame):
         self.sliceOpacityMaps = {}
         self.sliceLookupTables = {}
 
+        self.VOIpanel = None
+
         self.ini = ini
 
         # Builds the colormaps
@@ -305,7 +307,7 @@ class vtkView(QtGui.QFrame):
         self.sliceRenderer.SetBackground(0.0, 0.0, 0.0)
         self.volumeMapper = vtk.vtkSmartVolumeMapper()
 
-        # vtkImageImport to display data direectly from a numpy array
+        # vtkImageImport to display data directly from a numpy array
         self.importer1 = vtk.vtkImageImport()
         self.importer1.SetDataScalarTypeToUnsignedChar()
         self.importer2 = vtk.vtkImageImport()
@@ -499,7 +501,7 @@ class vtkView(QtGui.QFrame):
 
         # Updates the view
         self.resetAll()
-        self.renderAll()
+        self.renderAll(deletePanel=True)
 
     def initPlane(self,lx,ly,lz):
         """
@@ -871,10 +873,10 @@ class vtkView(QtGui.QFrame):
 
 
         self.numberOfDataSets = 2
-        self.data1 = data1
-        self.tdata1 = copy.deepcopy(data1)
-        self.data2 = data2
-        self.tdata2 = copy.deepcopy(data2)
+        self.data1 = copy.deepcopy(data1)
+        self.tdata1 = data1
+        self.data2 = copy.deepcopy(data2)
+        self.tdata2 = data2
         for t in transforms1:
             if t.active:
                 self.tdata1 = t.apply(self.tdata1)
@@ -927,8 +929,8 @@ class vtkView(QtGui.QFrame):
         self.sliceBlender.AddInputConnection(self.slice1.GetOutputPort())
         self.sliceBlender.AddInputConnection(self.slice2.GetOutputPort())
         self.sliceBlender.SetBlendModeToNormal()
-        self.sliceBlender.SetOpacity(0, .5)
-        self.sliceBlender.SetOpacity(1, .5)
+        # self.sliceBlender.SetOpacity(0, .5)
+        self.sliceBlender.SetOpacity(1, 0.5)
 
         # Connects the slicer to its mapper
         self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
@@ -971,7 +973,7 @@ class vtkView(QtGui.QFrame):
 
         # Updates the view
         self.resetAll()
-        self.renderAll()
+        self.renderAll(deletePanel=True)
 
         self.colormap = colormap
 
@@ -979,9 +981,18 @@ class vtkView(QtGui.QFrame):
         self.renderer.ResetCamera()
         self.sliceRenderer.ResetCamera()
 
-    def renderAll(self):
+    def renderAll(self, deletePanel=False):
         self.renwin.Render()
         self.slicerenwin.Render()
+        if deletePanel:
+            if self.VOIpanel is not None:
+                print('Deleting panel(s)')
+                if isinstance(self.VOIpanel, list):
+                    for p in self.VOIpanel:
+                        p.close()
+                else:
+                    self.VOIpanel.close()
+                self.VOIpanel = None
 
     def plotdF(self, interactor, event):
         """
@@ -1050,6 +1061,12 @@ class vtkView(QtGui.QFrame):
             print('Erased pltdata')
             self.camphor.pltdata1 = []
             self.camphor.pltdata2 = []
+
+        elif key=="v":
+            picker = vtk.vtkPropPicker()
+            picker.Pick(pos[0], pos[1], 0, self.sliceRenderer)
+            pos = picker.GetPickPosition()
+            print('Click position: ({:d},{:d})'.format(numpy.round(pos[0]),numpy.round(pos[1])))
 
 
     ##########################
@@ -1258,7 +1275,35 @@ class vtkView(QtGui.QFrame):
             t2.SetTableValue(i, list(self.sliceColorMaps['Overlay'][1].GetColor(i)) + [a])
         self.sliceLookupTables['Overlay'] = [t1,t2]
 
+        t1 = vtk.vtkLookupTable()
+        t2 = vtk.vtkLookupTable()
+        t1.SetRange(0, 255)
+        t2.SetRange(0, 255)
+        for i in range(256):
+            a = self.sliceOpacityMaps['Standard'].GetValue(i)
+            t1.SetTableValue(i, list(self.sliceColorMaps['Standard'].GetColor(i)) + [a])
+            t2.SetTableValue(i, list(self.sliceColorMaps['Overlay'][0].GetColor(i)) + [a])
+        self.sliceLookupTables['OverlayVOI'] = [t1, t2]
 
+        self.colorMaps['OverlayVOI'] = [self.colorMaps['Standard'], self.colorMaps['Overlay'][0]]
+        self.opacityMaps['OverlayVOI'] = [self.opacityMaps['Standard'], self.opacityMaps['Overlay'][0]]
+        self.sliceColorMaps['OverlayVOI'] = [self.sliceColorMaps['Standard'], self.sliceColorMaps['Overlay'][0]]
+        self.sliceOpacityMaps['OverlayVOI'] = [self.sliceOpacityMaps['Standard'], self.sliceOpacityMaps['Overlay'][0]]
+
+        t1 = vtk.vtkLookupTable()
+        t2 = vtk.vtkLookupTable()
+        t1.SetRange(0, 255)
+        t2.SetRange(0, 255)
+        for i in range(256):
+            a = self.sliceOpacityMaps['Standard'].GetValue(i)
+            t1.SetTableValue(i, list(self.sliceColorMaps['Standard'].GetColor(i)) + [a])
+            t2.SetTableValue(i, list(self.sliceColorMaps['Overlay'][0].GetColor(i)) + [a])
+        self.sliceLookupTables['OverlayHRS'] = [t2, t1]
+
+        self.colorMaps['OverlayHRS'] = [self.colorMaps['Overlay'][0], self.colorMaps['Standard']]
+        self.opacityMaps['OverlayHRS'] = [self.opacityMaps['Overlay'][0], self.opacityMaps['Standard']]
+        self.sliceColorMaps['OverlayHRS'] = [self.sliceColorMaps['Overlay'][0], self.sliceColorMaps['Standard']]
+        self.sliceOpacityMaps['OverlayHRS'] = [self.sliceOpacityMaps['Overlay'][0], self.sliceOpacityMaps['Standard']]
 
     ##########################
     ###  USER INTERACTION  ###

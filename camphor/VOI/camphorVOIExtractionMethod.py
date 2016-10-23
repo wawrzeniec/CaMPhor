@@ -71,7 +71,7 @@ class camphorVOIExtractionMethod(ABC):
     def setMessage(self, targetFunc):
         self.message = targetFunc
 
-    def controlWidget(self, vtkView, baseData, VOIData):
+    def controlWidget(self, vtkView, baseData, VOIdata, message=None):
         """
         VOIextractionMethod.controlWidget()
 
@@ -89,26 +89,29 @@ class camphorVOIExtractionMethod(ABC):
         :return: the QWidget object of the control panel
         """
 
-        if not hasattr(self._parameters,'controls'):
+        if not hasattr(self._parameters,'_controls'):
             return None
         
-        def updateVOIs(filterInstance, vtkView, baseData, VOIData):
-            filterInstance.updateVOIs(vtkView, baseData, VOIData)
+        def updateVOIs():
+            self.updateVOIs(vtkView, baseData, VOIdata)
             pass
         
-        def setParamNumeric(filterInstance, key, value):
-            setattr(filterInstance.parameters, key, value)
-            updateVOIs(filterInstance, vtkView, baseData, VOIData)
+        def setParamNumeric(key, value):
+            setattr(self.parameters, key, value)
 
-        def setParamList(filterInstance, key, valueList, value):
-            setattr(filterInstance.parameters, key, valueList[value])
-            updateVOIs(filterInstance, vtkView, baseData, VOIData)
+        def setParamList(key, valueList, value):
+            setattr(self.parameters, key, valueList[value])
 
-        controlPanel = QtGui.QWidget()
+        controlPanel = QtGui.QWidget(parent=vtkView.camphor)
         controlPanel.setWindowFlags(QtCore.Qt.Tool)
+        if message is None:
+            panelTitle = "VOI Control Panel"
+        else:
+            panelTitle = "VOI Control Panel {:s}".format(message)
+        controlPanel.setWindowTitle(panelTitle)
         layout = QtGui.QFormLayout()
 
-        for i, param in enumerate(self._parameters.controls):
+        for i, param in enumerate(self._parameters._controls):
             # For each control parameter, constructs an associated control
             controlType = self._parameters._controls[param][4]
             dataType = self._parameters._controls[param][0]
@@ -117,71 +120,89 @@ class camphorVOIExtractionMethod(ABC):
             step = self._parameters._controls[param][3]
 
             paramValue = self._parameters.__getattribute__(param)
-            if controlType is 'spinBox':
-                if dataType is 'double':
+            if str.lower(controlType) == 'spinbox':
+                if str.lower(dataType) == 'double':
                     w = QtGui.QDoubleSpinBox()
                     w.setRange(minValue, maxValue)
                     w.setSingleStep(step)
                     w.setValue(paramValue)
-                    w.valueChanged.connect(partial(setParamNumeric, self, param))
+                    w.valueChanged.connect(partial(setParamNumeric, param))
                     layout.addRow(QtGui.QLabel(param), w)
-                elif dataType is 'doubleg':
-                    w = QtGui.QDoubleSpinBoxG()
+                elif str.lower(dataType) == 'doubleg':
+                    w = QDoubleSpinBoxG()
                     w.setRange(minValue, maxValue)
                     w.setSingleStep(step)
                     w.setValue(paramValue)
-                    w.valueChanged.connect(partial(setParamNumeric, self, param))
+                    w.valueChanged.connect(partial(setParamNumeric, param))
                     layout.addRow(QtGui.QLabel(param), w)
-                elif dataType is 'int':
-                    w = QtGui.QSpinBoxG()
+                elif str.lower(dataType) == 'int':
+                    w = QtGui.QSpinBox()
                     w.setRange(minValue, maxValue)
                     w.setSingleStep(step)
                     w.setValue(paramValue)
-                    w.valueChanged.connect(partial(setParamNumeric, self, param))
+                    w.valueChanged.connect(partial(setParamNumeric, param))
                     layout.addRow(QtGui.QLabel(param), w)
-            elif controlType is 'slider':
-                w = sliderLabel(self, paramValue, minValue, maxValue, step, dataType)
+            elif str.lower(controlType) == 'slider':
+                w = sliderLabel(paramName=param, paramValue=paramValue, minValue=minValue,
+                                maxValue=maxValue, step=step, dataType=dataType, target=self.parameters)
+                layout.addRow(w)
+
+        recomputeButton = QtGui.QPushButton('Recompute VOIs')
+        recomputeButton.clicked.connect(updateVOIs)
+        layout.addRow(recomputeButton)
+        controlPanel.setLayout(layout)
+        controlPanel.show()
+        return controlPanel
 
     def updateVOIs(self, vtkView, baseData, VOIdata):
-        print('Updating VOIs!!!!')
-
+        self.computeVOIs(baseData, VOIdata)
+        vtkView.importer1.Modified()
+        vtkView.importer2.Modified()
+        vtkView.renderAll(deletePanel=False)
 
 class sliderLabel(QtGui.QWidget):
-    def __init(self, parent, param, minValue, maxValue, step, dataType):
+    def __init__(self, paramName, paramValue, minValue, maxValue, step, dataType, target):
         super(sliderLabel, self).__init__()
-        
-        self.param = param
-        layout = QtGui.QHBoxLayout()
-        self.slider = QtGui.QSlider()
-        
-        if dataType is 'double':
+
+        self.paramName = paramName
+        self.paramValue = paramValue
+        vlayout = QtGui.QVBoxLayout()
+        hlayout = QtGui.QHBoxLayout()
+        self.slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.label = QtGui.QLabel(paramName)
+        self.target = target
+
+        if str.lower(dataType) == 'double':
             self.spinbox = QtGui.QDoubleSpinBox()
-        elif dataType is 'doubleg':
+        elif str.lower(dataType) == 'doubleg':
             self.spinbox = QtGui.QDoubleSpinBoxG()
-        elif dataType is 'int':
+        elif str.lower(dataType) == 'int':
             self.spinbox = QtGui.QSpinBox()
         
-        self.slider.setValue(param)
+        self.slider.setValue(paramValue)
         self.slider.setRange(minValue, maxValue)
         self.slider.setSingleStep(step)
-        self.spinbox.setValue(param)
+        self.spinbox.setValue(paramValue)
         self.spinbox.setRange(minValue, maxValue)
         self.spinbox.setSingleStep(step)
         
-        self.slider.valueChanged.connect(self.valueChanged)
-        self.spinbox.valueChanged.connect(self.valueChanged)
+        self.slider.valueChanged.connect(partial(self.valueChanged, 0))
+        self.spinbox.valueChanged.connect(partial(self.valueChanged, 1))
 
-        layout.addWidget(self.slider)
-        layout.addWidget(self.combobox)
-        self.setLayout(layout)
+        hlayout.addWidget(self.label)
+        hlayout.addWidget(self.spinbox)
+        vlayout.addLayout(hlayout)
+        vlayout.addWidget(self.slider)
+        vlayout.setContentsMargins(0,0,0,0)
+        hlayout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(vlayout)
         
-    def valueChanged(self, value):
-        if self is self.spinbox:
+    def valueChanged(self, id, value):
+        if id is 1:
             self.slider.setValue(value)
-        if self is self.slider:
-            self.spinbox.setValue()
-        self.param = value
-        self.parent.updateVOIs()
+        if id is 0:
+            self.spinbox.setValue(value)
+        setattr(self.target, self.paramName, value)
         
 class QDoubleSpinBoxG(QtGui.QDoubleSpinBox):
     def __init__(self, *args):
