@@ -7,6 +7,7 @@ import time
 from camphor import utils
 import numpy
 import copy
+from matplotlib import cm
 
 class vtkView(QtGui.QFrame):
     """
@@ -312,7 +313,7 @@ class vtkView(QtGui.QFrame):
         self.importer1.SetDataScalarTypeToUnsignedChar()
         self.importer2 = vtk.vtkImageImport()
         self.importer2.SetDataScalarTypeToUnsignedChar()
-        self.blender = vtk.vtkImageAppendComponents()
+        self.blender = vtk.vtkImageBlend() #AppendComponents()
         self.sliceBlender = vtk.vtkImageBlend()
 
         # Assigns color & opacity to the vtkVolumeProperty object which we will use for our volume rendering
@@ -976,6 +977,143 @@ class vtkView(QtGui.QFrame):
         self.renderAll(deletePanel=True)
 
         self.colormap = colormap
+
+    def overlayVOIs(self, data):
+        """
+                function vtkView.overlayVOIs(self, data)
+
+                Overlays any number of VOI images in the VTK view
+                data is a list of 3D binary arrays (uint8, scaled 0-255) where each member is a set of VOIs
+
+                :param data:    the VOI data
+                :return: nothing
+                """
+
+        firstTime = (self.nt == 0)  # If this is the first time data is assigned, we will need to create some objects
+
+        self.nt = 1
+        self.data1 = [data[0]] # often used to check the shape of the data
+        self.currentdata1 = self.data1
+
+        lz, ly, lx = data[0].shape  # The shape of the data (VTK is inverted wrt numpy)
+        print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
+
+        self.numberOfDataSets = len(data)
+        print("number of datasets: {:d}".format(self.numberOfDataSets))
+        # In the case where we have more than 2 data sets,
+        # we cannot rely on the vtkView member objects, thus
+        # we create arrays of VTK objects to import an overlay the data
+
+        print("creating importers and slices...")
+        importers = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
+        slices = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
+        for i in range(self.numberOfDataSets):
+            importers[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+            importers[i].SetDataExtentToWholeExtent()
+            importers[i].SetDataScalarTypeToUnsignedChar()
+            importers[i].SetImportVoidPointer(data[i])
+            importers[i].Modified()
+            slices[i].SetInputConnection(importers[i].GetOutputPort())
+        print("done.")
+
+        self.displaydFAction.setEnabled(False)
+
+        # Creates the colormap
+        print("creating color maps and lookup tables...")
+        t = cm.ScalarMappable(None, "Set1")
+        r = t.to_rgba(range(self.numberOfDataSets))
+        print("Retrieved Set1 colormap")
+
+        opacityMaps = [vtk.vtkPiecewiseFunction() for i in range(self.numberOfDataSets)]
+        colorMaps = [vtk.vtkColorTransferFunction() for i in range(self.numberOfDataSets)]
+        table = [vtk.vtkLookupTable() for i in range(self.numberOfDataSets)]
+        print("created vtk objects")
+
+        for i in range(self.numberOfDataSets):
+            table[i].SetRange(0, 255)
+            table[i].SetTableValue(0, [0,0,0,0])
+            table[i].SetTableValue(255, r[i,:])
+
+            colorMaps[i].SetColorSpaceToRGB()
+            colorMaps[i].AddRGBPoint(0, 0, 0, 0)
+            colorMaps[i].AddRGBPoint(255, r[i,0], r[i,1], r[1,2])
+            opacityMaps[i].AddPoint(0,0)
+            opacityMaps[i].AddPoint(255, 0.5)
+
+        print("done")
+
+        # Connects the importer to the volume mapper and to the slicer
+        self.blender.RemoveAllInputConnections(0)
+        self.sliceBlender.RemoveAllInputConnections(0)
+
+        print("adding connections to blenders....")
+        for i in range(self.numberOfDataSets):
+            print("component {:d}".format(i))
+            self.blender.AddInputConnection(importers[i].GetOutputPort())
+            self.sliceBlender.AddInputConnection(slices[i].GetOutputPort())
+            self.sliceBlender.SetOpacity(i, 0.5)
+        print("done")
+        self.sliceBlender.SetBlendModeToNormal()
+
+        # Connects the objects to their mapper
+        print("Connecting to mappers...")
+        print("volume")
+        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
+        print("slice")
+        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
+        print("done")
+
+
+        print("Setting Properties")
+        self.volumeProperty = vtk.vtkVolumeProperty()
+        self.volumeProperty.ShadeOff()
+
+        for i in range(self.numberOfDataSets):
+            print("i={:d}. setting property".format(i))
+            self.volumeProperty.SetColor(i, colorMaps[i])
+            print("done color")
+            slices[i].SetLookupTable(table[i])
+            print("done lookup table")
+            self.volumeProperty.SetScalarOpacity(i, opacityMaps[i])
+            print("done opacity")
+
+        firstTime = True
+        if firstTime:
+            # If this is the first time we add data, we create
+            # a new volume object for the 3D rendering, and
+            # another one for the 2D slice
+            self.volume = vtk.vtkVolume()
+            self.volume.SetMapper(self.volumeMapper)
+            self.volume.SetProperty(self.volumeProperty)
+            self.renderer.AddVolume(self.volume)
+
+            self.sliceVolume = vtk.vtkImageActor() #vtk.vtkVolume()
+            self.sliceVolume.SetMapper(self.sliceMapper)
+            self.sliceRenderer.AddActor(self.sliceVolume)
+
+            # Displays the plane in the 3D view at the center of the sample
+            self.initPlane(lx, ly, lz)
+
+        # Adjusts slider max value to match the data size
+        self.zslider.setValue(self.planez)
+        self.tslider.setMaximum(self.nt - 1)
+        if (self.curPlaneOrientation == 0):
+            self.zslider.setMaximum(ly - 1)  # for VTK, the vertical axis is y, although we call it z
+        elif (self.curPlaneOrientation == 1):
+            self.zslider.setMaximum(lz - 1)  # for VTK, the vertical axis is y, although we call it z
+        elif (self.curPlaneOrientation == 2):
+            self.zslider.setMaximum(lx - 1)  # for VTK, the vertical axis is y, although we call it z
+        else:
+            print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
+
+        # Adjusts the position and orientation of the slicing plane
+        self.setCubeDimensions()
+        self.setTimeSlice()
+
+
+        # Updates the view
+        self.resetAll()
+        self.renderAll(deletePanel=True)
 
     def resetAll(self):
         self.renderer.ResetCamera()
