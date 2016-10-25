@@ -994,6 +994,8 @@ class vtkView(QtGui.QFrame):
         self.nt = 1
         self.data1 = [data[0]] # often used to check the shape of the data
         self.currentdata1 = self.data1
+        self.data2 = [data[1]]
+        self.currentdata2 = self.data1
 
         lz, ly, lx = data[0].shape  # The shape of the data (VTK is inverted wrt numpy)
         print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
@@ -1004,8 +1006,9 @@ class vtkView(QtGui.QFrame):
         # we cannot rely on the vtkView member objects, thus
         # we create arrays of VTK objects to import an overlay the data
 
-        print("creating importers and slices...")
+        print("creating importers, imageMapToColors and slices...")
         importers = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
+        images = [vtk.vtkImageMapToColors() for i in range(self.numberOfDataSets)]
         slices = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
         for i in range(self.numberOfDataSets):
             importers[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
@@ -1013,16 +1016,15 @@ class vtkView(QtGui.QFrame):
             importers[i].SetDataScalarTypeToUnsignedChar()
             importers[i].SetImportVoidPointer(data[i])
             importers[i].Modified()
-            slices[i].SetInputConnection(importers[i].GetOutputPort())
         print("done.")
 
         self.displaydFAction.setEnabled(False)
 
         # Creates the colormap
         print("creating color maps and lookup tables...")
-        t = cm.ScalarMappable(None, "Set1")
+        t = cm.ScalarMappable(None, "nipy_spectral") #"Set1")
         r = t.to_rgba(range(self.numberOfDataSets))
-        print("Retrieved Set1 colormap")
+        print("Retrieved colormap")
 
         opacityMaps = [vtk.vtkPiecewiseFunction() for i in range(self.numberOfDataSets)]
         colorMaps = [vtk.vtkColorTransferFunction() for i in range(self.numberOfDataSets)]
@@ -1031,8 +1033,11 @@ class vtkView(QtGui.QFrame):
 
         for i in range(self.numberOfDataSets):
             table[i].SetRange(0, 255)
+            table[i].SetAlphaRange(0,1)
             table[i].SetTableValue(0, [0,0,0,0])
-            table[i].SetTableValue(255, r[i,:])
+            table[i].SetTableValue(255, numpy.append(r[i,0:3],1))
+            table[i].SetRampToLinear()
+            table[i].Build()
 
             colorMaps[i].SetColorSpaceToRGB()
             colorMaps[i].AddRGBPoint(0, 0, 0, 0)
@@ -1042,6 +1047,13 @@ class vtkView(QtGui.QFrame):
 
         print("done")
 
+        print("Creating color images...")
+        for i in range(self.numberOfDataSets):
+            images[i].SetInputConnection(importers[i].GetOutputPort())
+            images[i].SetLookupTable(table[i])
+            images[i].PassAlphaToOutputOn()
+            slices[i].SetInputConnection(images[i].GetOutputPort())
+
         # Connects the importer to the volume mapper and to the slicer
         self.blender.RemoveAllInputConnections(0)
         self.sliceBlender.RemoveAllInputConnections(0)
@@ -1049,11 +1061,15 @@ class vtkView(QtGui.QFrame):
         print("adding connections to blenders....")
         for i in range(self.numberOfDataSets):
             print("component {:d}".format(i))
-            self.blender.AddInputConnection(importers[i].GetOutputPort())
+            self.blender.AddInputConnection(images[i].GetOutputPort())
             self.sliceBlender.AddInputConnection(slices[i].GetOutputPort())
-            self.sliceBlender.SetOpacity(i, 0.5)
         print("done")
+        self.blender.SetBlendModeToCompound()
         self.sliceBlender.SetBlendModeToNormal()
+        self.blender.SetOpacity(i, 0.1)
+        self.sliceBlender.SetOpacity(i, 0.5)
+
+        print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
 
         # Connects the objects to their mapper
         print("Connecting to mappers...")
@@ -1064,18 +1080,18 @@ class vtkView(QtGui.QFrame):
         print("done")
 
 
-        print("Setting Properties")
-        self.volumeProperty = vtk.vtkVolumeProperty()
-        self.volumeProperty.ShadeOff()
-
-        for i in range(self.numberOfDataSets):
-            print("i={:d}. setting property".format(i))
-            self.volumeProperty.SetColor(i, colorMaps[i])
-            print("done color")
-            slices[i].SetLookupTable(table[i])
-            print("done lookup table")
-            self.volumeProperty.SetScalarOpacity(i, opacityMaps[i])
-            print("done opacity")
+        # print("Setting Properties")
+        # self.volumeProperty = vtk.vtkVolumeProperty()
+        # self.volumeProperty.ShadeOff()
+        #
+        # for i in range(self.numberOfDataSets):
+            # print("i={:d}. setting property".format(i))
+            # self.volumeProperty.SetColor(i, colorMaps[i])
+            # print("done color")
+            # slices[i].SetLookupTable(table[i])
+            # print("done lookup table")
+            # self.volumeProperty.SetScalarOpacity(i, opacityMaps[i])
+            # print("done opacity")
 
         firstTime = True
         if firstTime:
