@@ -37,21 +37,17 @@ class vtkView(QtGui.QFrame):
     def __init__(self, parent, ini, data = None):
         super(vtkView,self).__init__(parent)
         if data is None:
-            self.data1 = []
+            self.data = [[]]
             self.nt = 0
             self.numberOfDataSets = 0
         else:
-            self.data1 = data
-            self.nt = len(self.data)
+            self.data = [data]
+            self.nt = len(self.data[0])
             self.numberOfDataSets = 1
 
-        self.data2 = []
-        self.baseline1 = None
-        self.baseline2 = None
-        self.currentdata1 = []
-        self.currentdata2 = []
-        self.dFdata1 = []
-        self.dFdata2 = []
+        self.baseline = [None]
+        self.currentdata = [[]]
+        self.dFdata = [[]]
         self.camphor = parent
 
         self.colorMaps = {}
@@ -309,10 +305,9 @@ class vtkView(QtGui.QFrame):
         self.volumeMapper = vtk.vtkSmartVolumeMapper()
 
         # vtkImageImport to display data directly from a numpy array
-        self.importer1 = vtk.vtkImageImport()
-        self.importer1.SetDataScalarTypeToUnsignedChar()
-        self.importer2 = vtk.vtkImageImport()
-        self.importer2.SetDataScalarTypeToUnsignedChar()
+        self.importer = [vtk.vtkImageImport() for i in range(2)]
+        self.importer[0].SetDataScalarTypeToUnsignedChar()
+        self.importer[1].SetDataScalarTypeToUnsignedChar()
         self.blender = vtk.vtkImageBlend() #AppendComponents()
         self.sliceBlender = vtk.vtkImageBlend()
 
@@ -348,21 +343,17 @@ class vtkView(QtGui.QFrame):
 
         # The vtkImageReslice object to do the actual volume cut
         # and display the result as 2D
-        self.slice1 = vtk.vtkImageResliceToColors()
-        self.slice1.SetLookupTable(self.sliceLookupTables['Standard'])
-        self.slice2 = vtk.vtkImageResliceToColors()
-        self.slice2.SetLookupTable(self.sliceLookupTables['Standard'])
+        self.slice = [vtk.vtkImageResliceToColors() for i in range(2)]
         sagittal = vtk.vtkMatrix4x4()
         sagittal.DeepCopy((0, 1, 0, 0,
                            0, 0, 1, 125.5,
                            1, 0, 0, 0,
                            0, 0, 0, 1))
-        self.slice1.SetResliceAxes(sagittal)
-        self.slice1.SetOutputDimensionality(2)
-        self.slice1.SetInterpolationModeToLinear()
-        self.slice2.SetResliceAxes(sagittal)
-        self.slice2.SetOutputDimensionality(2)
-        self.slice2.SetInterpolationModeToLinear()
+        for i in range(2):
+            self.slice[i].SetLookupTable(self.sliceLookupTables['Standard'])
+            self.slice[i].SetResliceAxes(sagittal)
+            self.slice[i].SetOutputDimensionality(2)
+            self.slice[i].SetInterpolationModeToLinear()
         self.curPlaneOrientation = 0
 
         self.sliceVolumeProperty = vtk.vtkVolumeProperty()
@@ -426,27 +417,25 @@ class vtkView(QtGui.QFrame):
         print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx,ly,lz,self.nt))
 
         self.numberOfDataSets = 1
-        self.data1 = d
-        self.tdata1 = copy.deepcopy(d)
+        self.data = [d]
+        self.tdata = [copy.deepcopy(d)]
         for t in transforms:
             if t.active:
-                self.tdata1 = t.apply(self.tdata1)
-        self.data2 = None
-        self.tdata2 = None
+                self.tdata[0] = t.apply(self.tdata[0])
 
         # Sets the importer to import the first frame of the supplied data
-        self.importer1.SetWholeExtent(0, lx-1, 0, ly-1, 0, lz-1)
-        self.importer1.SetDataExtentToWholeExtent()
+        self.importer[0].SetWholeExtent(0, lx-1, 0, ly-1, 0, lz-1)
+        self.importer[0].SetDataExtentToWholeExtent()
         if dataType==numpy.uint8:
-            self.importer1.SetDataScalarTypeToUnsignedChar()
+            self.importer[0].SetDataScalarTypeToUnsignedChar()
         elif dataType==numpy.uint16:
-            self.importer1.SetDataScalarTypeToUnsignedShort()
+            self.importer[0].SetDataScalarTypeToUnsignedShort()
         elif dataType==numpy.int:
-            self.importer1.SetDataScalarTypeToInt()
+            self.importer[0].SetDataScalarTypeToInt()
 
-        self.importer1.SetImportVoidPointer(self.tdata1[0])
-        self.importer1.Modified()
-        self.currentdata1 = self.tdata1
+        self.importer[0].SetImportVoidPointer(self.tdata[0][0])
+        self.importer[0].Modified()
+        self.currentdata = self.tdata
 
         if self.nt > 1:
             self.displaydFAction.setEnabled(True)
@@ -459,12 +448,12 @@ class vtkView(QtGui.QFrame):
         self.colormap = colormap    # To remember what was the colormap when we first displayed this object
 
         # Connects the importer to the volume mapper and to the slicer
-        self.volumeMapper.SetInputConnection(self.importer1.GetOutputPort())
-        self.slice1.SetInputConnection(self.importer1.GetOutputPort())
-        self.slice1.Update()
+        self.volumeMapper.SetInputConnection(self.importer[0].GetOutputPort())
+        self.slice[0].SetInputConnection(self.importer[0].GetOutputPort())
+        self.slice[0].Update()
 
         # Connects the slicer to its mapper
-        self.sliceMapper.SetInputConnection(self.slice1.GetOutputPort())
+        self.sliceMapper.SetInputConnection(self.slice[0].GetOutputPort())
 
         if firstTime:
             # If this is the first time we add data, we create
@@ -552,11 +541,9 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, z,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
-            self.slice1.Update()
-            if self.numberOfDataSets == 2:
-                self.slice2.SetResliceAxes(sagittal)
-                self.slice2.Update()
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Updates the plane (cube) in the 3D view
             center = self.cube.GetCenter()
@@ -572,11 +559,9 @@ class vtkView(QtGui.QFrame):
                                1, 0, 0, 0,
                                0, 0, 1, z,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
-            self.slice1.Update()
-            if self.numberOfDataSets == 2:
-                self.slice2.SetResliceAxes(sagittal)
-                self.slice2.Update()
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Updates the plane (cube) in the 3D view
             center = self.cube.GetCenter()
@@ -592,11 +577,9 @@ class vtkView(QtGui.QFrame):
                                0, 1, 0, 0,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
-            self.slice1.Update()
-            if self.numberOfDataSets == 2:
-                self.slice2.SetResliceAxes(sagittal)
-                self.slice2.Update()
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Updates the plane (cube) in the 3D view
             center = self.cube.GetCenter()
@@ -620,7 +603,7 @@ class vtkView(QtGui.QFrame):
         """
 
         self.curPlaneOrientation = orientation
-        lz, ly, lx = self.data1[0].shape
+        lz, ly, lx = self.data[0][0].shape
 
         if orientation == 0:
             # Updates the slicer
@@ -633,7 +616,9 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, z,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Updates the plane
             self.plane.SetOrigin(-5, z, -5)
@@ -662,7 +647,9 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, 0,
                                1, 0, 0, z,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Updates the plane
             self.plane.SetOrigin(-5, -5, z)
@@ -691,7 +678,9 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, 0,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            self.slice1.SetResliceAxes(sagittal)
+            for i in range(self.numberOfDataSets):
+                self.slice[i].SetResliceAxes(sagittal)
+                self.slice[i].Update()
 
             # Adjusts the plane
             self.plane.SetOrigin(z, -5, -5)
@@ -709,13 +698,15 @@ class vtkView(QtGui.QFrame):
             self.zslider.setMaximum(lx-1)
             self.zslider.setValue(z)
 
-        self.slice1.Update()
+        for i in range(self.numberOfDataSets):
+            self.slice[i].Update()
+
         # Updates the view
         self.renwin.Render()
         self.slicerenwin.Render()
 
     def setCubeDimensions(self):
-        lz, ly, lx = self.data1[0].shape
+        lz, ly, lx = self.data[0][0].shape
 
         if self.curPlaneOrientation == 0:
             self.cube.SetBounds(-5, lx + 5, self.planez - 0.5, self.planez + 0.5, -5, lz + 5)
@@ -737,11 +728,10 @@ class vtkView(QtGui.QFrame):
 
         t = self.tslider.value()
         if(t < self.nt):
-            self.importer1.SetImportVoidPointer(self.currentdata1[t])
-            self.slice1.Update()
-            if self.numberOfDataSets==2:
-                self.importer2.SetImportVoidPointer(self.currentdata2[t])
-                self.slice2.Update()
+            for i in range(self.numberOfDataSets):
+                self.importer[i].SetImportVoidPointer(self.currentdata[i][t])
+                self.importer[i].Modified()
+                self.slice[i].Update()
 
         self.tlabel.setText("t:{:d}".format(t))
 
@@ -752,30 +742,20 @@ class vtkView(QtGui.QFrame):
         self.displayFAction.setChecked(True)
         self.displaydFAction.setChecked(False)
 
-        lz, ly, lx = self.tdata1[0].shape
+        lz, ly, lx = self.tdata[0][0].shape
 
         if self.numberOfDataSets == 1:
             self.setColorMap(self.colormap)
 
         # Sets the importer to point to the right array
-        self.importer1.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-        self.importer1.SetDataExtentToWholeExtent()
         t = self.tslider.value()
-        self.importer1.SetImportVoidPointer(self.tdata1[t])
-        self.importer1.Modified()
-
-        self.currentdata1 = self.tdata1
-        self.slice1.Update()
-
-        if self.numberOfDataSets == 2:
-            self.importer2.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer2.SetDataExtentToWholeExtent()
-            t = self.tslider.value()
-            self.importer2.SetImportVoidPointer(self.tdata2[t])
-            self.importer2.Modified()
-
-            self.currentdata2 = self.tdata2
-            self.slice2.Update()
+        self.currentdata = self.tdata
+        for i in range(self.numberOfDataSets):
+            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+            self.importer[i].SetDataExtentToWholeExtent()
+            self.importer[i].SetImportVoidPointer(self.tdata[i][t])
+            self.importer[i].Modified()
+            self.slice[i].Update()
 
         # updates the display
         self.renwin.Render()
@@ -785,31 +765,20 @@ class vtkView(QtGui.QFrame):
         self.displayFAction.setChecked(False)
         self.displaydFAction.setChecked(True)
 
-        lz, ly, lx = self.dFdata1[0].shape
+        lz, ly, lx = self.dFdata[0][0].shape
 
         if self.numberOfDataSets == 1:
             self.setColorMap('Standard')
 
         # Sets the importer to point to the right array
-        self.importer1.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-        self.importer1.SetDataExtentToWholeExtent()
+        self.currentdata = self.dFdata
         t = self.tslider.value()
-        self.importer1.SetImportVoidPointer(self.dFdata1[t])
-        self.importer1.Modified()
-
-        self.currentdata1 = self.dFdata1
-        self.slice1.Update()
-
-        if self.numberOfDataSets == 2:
-            # Sets the importer to point to the right array
-            self.importer2.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer2.SetDataExtentToWholeExtent()
-            t = self.tslider.value()
-            self.importer2.SetImportVoidPointer(self.dFdata2[t])
-            self.importer2.Modified()
-
-            self.currentdata2 = self.dFdata2
-            self.slice2.Update()
+        for i in range(self.numberOfDataSets):
+            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+            self.importer[i].SetDataExtentToWholeExtent()
+            self.importer[i].SetImportVoidPointer(self.dFdata[i][t])
+            self.importer[i].Modified()
+            self.slice[i].Update()
 
         # updates the display
         self.renwin.Render()
@@ -843,12 +812,12 @@ class vtkView(QtGui.QFrame):
     def showDiff(self, data1, data2, transforms1=(), transforms2=()):
         self.calculateDiff(data1=data1,data2=data2,transforms1=transforms1,transforms2=transforms2)
         self.colormap = 'Diff'
-        self.assignData(self.tdata1, colormap='Diff')
+        self.assignData(self.tdata[0], colormap='Diff')
 
     def showtDiff(self, data, transforms=()):
         self.calculatetDiff(data=data,transforms=transforms)
         self.colormap = 'Diff'
-        self.assignData(self.tdata1, colormap='Diff')
+        self.assignData(self.tdata[0], colormap='Diff')
 
     def overlay(self, data1, data2, transforms1=(), transforms2=(), colormap=None, dataType=numpy.uint8):
         """
@@ -874,39 +843,39 @@ class vtkView(QtGui.QFrame):
 
 
         self.numberOfDataSets = 2
-        self.data1 = copy.deepcopy(data1)
-        self.tdata1 = data1
-        self.data2 = copy.deepcopy(data2)
-        self.tdata2 = data2
+        self.data = [copy.deepcopy(data1), copy.deepcopy(data2)]
+        self.tdata = [data1, data2]
         for t in transforms1:
             if t.active:
-                self.tdata1 = t.apply(self.tdata1)
+                self.tdata[0] = t.apply(self.tdata[0])
 
         for t in transforms2:
             if t.active:
-                self.tdata2 = t.apply(self.tdata2)
+                self.tdata[0] = t.apply(self.tdata[1])
 
         # Sets the importer to import the first frame of the supplied data
-        self.importer1.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-        self.importer1.SetDataExtentToWholeExtent()
-        self.importer2.SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-        self.importer2.SetDataExtentToWholeExtent()
-        if dataType == numpy.uint8:
-            self.importer1.SetDataScalarTypeToUnsignedChar()
-            self.importer2.SetDataScalarTypeToUnsignedChar()
-        elif dataType == numpy.uint16:
-            self.importer1.SetDataScalarTypeToUnsignedShort()
-            self.importer2.SetDataScalarTypeToUnsignedShort()
-        elif dataType == numpy.int:
-            self.importer1.SetDataScalarTypeToInt()
-            self.importer2.SetDataScalarTypeToInt()
 
-        self.importer1.SetImportVoidPointer(self.tdata1[0])
-        self.importer2.SetImportVoidPointer(self.tdata2[0])
-        self.importer1.Modified()
-        self.importer2.Modified()
-        self.currentdata1 = self.tdata1
-        self.currentdata2 = self.tdata2
+        for i in range(self.numberOfDataSets):
+            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+            self.importer[i].SetDataExtentToWholeExtent()
+            if dataType == numpy.uint8:
+                self.importer[i].SetDataScalarTypeToUnsignedChar()
+            elif dataType == numpy.uint16:
+                self.importer[i].SetDataScalarTypeToUnsignedShort()
+            elif dataType == numpy.int:
+                self.importer[i].SetDataScalarTypeToInt()
+            elif dataType == numpy.float:
+                self.importer[i].SetDataScalarTypeToFloat()
+            elif dataType == numpy.float:
+                self.importer[i].SetDataScalarTypeToDouble()
+
+        self.currentdata = self.tdata
+
+        # Imports the data
+        for i in range(self.numberOfDataSets):
+            self.importer[i].SetImportVoidPointer(self.tdata[i][0])
+            self.importer[i].Modified()
+
 
         if self.nt > 1:
             self.displaydFAction.setEnabled(True)
@@ -921,21 +890,18 @@ class vtkView(QtGui.QFrame):
         # Connects the importer to the volume mapper and to the slicer
         self.blender.RemoveAllInputConnections(0)
         self.sliceBlender.RemoveAllInputConnections(0)
-        self.blender.AddInputConnection(self.importer1.GetOutputPort())
-        self.blender.AddInputConnection(self.importer2.GetOutputPort())
-        # self.blender.AddInputConnection(self.importer1.GetOutputPort())
         self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
-        self.slice1.SetInputConnection(self.importer1.GetOutputPort())
-        self.slice2.SetInputConnection(self.importer2.GetOutputPort())
-        self.sliceBlender.AddInputConnection(self.slice1.GetOutputPort())
-        self.sliceBlender.AddInputConnection(self.slice2.GetOutputPort())
+        for i in range(self.numberOfDataSets):
+            self.blender.AddInputConnection(self.importer[i].GetOutputPort())
+            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
+            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
+
         self.sliceBlender.SetBlendModeToNormal()
         # self.sliceBlender.SetOpacity(0, .5)
         self.sliceBlender.SetOpacity(1, 0.5)
 
         # Connects the slicer to its mapper
         self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
-        # self.sliceMapper.SetInputConnection(self.slice1.GetOutputPort())
 
         if firstTime:
             # If this is the first time we add data, we create
@@ -971,12 +937,13 @@ class vtkView(QtGui.QFrame):
         self.setCubeDimensions()
         self.setTimeSlice()
 
-
         # Updates the view
         self.resetAll()
         self.renderAll(deletePanel=True)
 
         self.colormap = colormap
+
+
 
     def overlayVOIs(self, data):
         """
@@ -992,10 +959,8 @@ class vtkView(QtGui.QFrame):
         firstTime = (self.nt == 0)  # If this is the first time data is assigned, we will need to create some objects
 
         self.nt = 1
-        self.data1 = [data[0]] # often used to check the shape of the data
-        self.currentdata1 = self.data1
-        self.data2 = [data[1]]
-        self.currentdata2 = self.data1
+        self.data = [[d] for d in data] # often used to check the shape of the data
+        self.currentdata = self.data
 
         lz, ly, lx = data[0].shape  # The shape of the data (VTK is inverted wrt numpy)
         print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
@@ -1007,15 +972,15 @@ class vtkView(QtGui.QFrame):
         # we create arrays of VTK objects to import an overlay the data
 
         print("creating importers, imageMapToColors and slices...")
-        importers = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
+        self.importer = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
         images = [vtk.vtkImageMapToColors() for i in range(self.numberOfDataSets)]
-        slices = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
+        self.slice = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
         for i in range(self.numberOfDataSets):
-            importers[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            importers[i].SetDataExtentToWholeExtent()
-            importers[i].SetDataScalarTypeToUnsignedChar()
-            importers[i].SetImportVoidPointer(data[i])
-            importers[i].Modified()
+            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+            self.importer[i].SetDataExtentToWholeExtent()
+            self.importer[i].SetDataScalarTypeToUnsignedChar()
+            self.importer[i].SetImportVoidPointer(data[i])
+            self.importer[i].Modified()
         print("done.")
 
         self.displaydFAction.setEnabled(False)
@@ -1032,42 +997,45 @@ class vtkView(QtGui.QFrame):
         print("created vtk objects")
 
         for i in range(self.numberOfDataSets):
-            table[i].SetRange(0, 255)
+            table[i].SetRange(0, 1)
             table[i].SetAlphaRange(0,1)
             table[i].SetTableValue(0, [0,0,0,0])
-            table[i].SetTableValue(255, numpy.append(r[i,0:3],1))
-            table[i].SetRampToLinear()
+            # table[i].SetTableValue(1, numpy.append(r[i,0:3],1))
+            table[i].SetTableValue(1, [i==0,i==1,i==0,1])
             table[i].Build()
 
             colorMaps[i].SetColorSpaceToRGB()
             colorMaps[i].AddRGBPoint(0, 0, 0, 0)
-            colorMaps[i].AddRGBPoint(255, r[i,0], r[i,1], r[1,2])
+            colorMaps[i].AddRGBPoint(1, r[i,0], r[i,1], r[1,2])
             opacityMaps[i].AddPoint(0,0)
-            opacityMaps[i].AddPoint(255, 0.5)
+            opacityMaps[i].AddPoint(1, 1)
 
         print("done")
 
         print("Creating color images...")
         for i in range(self.numberOfDataSets):
-            images[i].SetInputConnection(importers[i].GetOutputPort())
+            images[i].SetInputConnection(self.importer[i].GetOutputPort())
             images[i].SetLookupTable(table[i])
             images[i].PassAlphaToOutputOn()
-            slices[i].SetInputConnection(images[i].GetOutputPort())
 
         # Connects the importer to the volume mapper and to the slicer
         self.blender.RemoveAllInputConnections(0)
         self.sliceBlender.RemoveAllInputConnections(0)
+        self.blender.SetBlendModeToNormal()
+        self.sliceBlender.SetBlendModeToNormal()
 
         print("adding connections to blenders....")
         for i in range(self.numberOfDataSets):
             print("component {:d}".format(i))
-            self.blender.AddInputConnection(images[i].GetOutputPort())
-            self.sliceBlender.AddInputConnection(slices[i].GetOutputPort())
+            self.blender.AddInputConnection(self.importer[i].GetOutputPort())
+            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
+            self.slice[i].SetLookupTable(table[i])
+            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
+            self.blender.SetOpacity(i, 0.5)
+            self.sliceBlender.SetOpacity(i, 0.5)
         print("done")
-        self.blender.SetBlendModeToCompound()
-        self.sliceBlender.SetBlendModeToNormal()
-        self.blender.SetOpacity(i, 0.1)
-        self.sliceBlender.SetOpacity(i, 0.5)
+
+
 
         print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
 
@@ -1079,6 +1047,16 @@ class vtkView(QtGui.QFrame):
         self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
         print("done")
 
+        sagittal = vtk.vtkMatrix4x4()
+        sagittal.DeepCopy((0, 1, 0, 0,
+                           0, 0, 1, 127.5,
+                           1, 0, 0, 0,
+                           0, 0, 0, 1))
+
+        for i in range(self.numberOfDataSets):
+            self.slice[i].SetOutputDimensionality(2)
+            self.slice[i].SetInterpolationModeToLinear()
+            self.slice[i].SetResliceAxes(sagittal)
 
         # print("Setting Properties")
         # self.volumeProperty = vtk.vtkVolumeProperty()
@@ -1124,8 +1102,6 @@ class vtkView(QtGui.QFrame):
 
         # Adjusts the position and orientation of the slicing plane
         self.setCubeDimensions()
-        self.setTimeSlice()
-
 
         # Updates the view
         self.resetAll()
@@ -1174,9 +1150,9 @@ class vtkView(QtGui.QFrame):
 
             # take a 2x2x2 voxel and plot the average F
             if self.camphor.vtkView is self:
-                odata = self.camphor.vtkView2.tdata1
+                odata = self.camphor.vtkView2.tdata[0]
             else:
-                odata = self.camphor.vtkView.tdata1
+                odata = self.camphor.vtkView.tdata[0]
 
             if self.curPlaneOrientation == 0:
                 z = self.planez
@@ -1202,19 +1178,18 @@ class vtkView(QtGui.QFrame):
                 f2 = None
 
             if self.camphor.vtkView is self:
-                self.camphor.pltdata1.append(f1)
-                self.camphor.pltdata2.append(f2)
+                self.camphor.pltdata[0].append(f1)
+                self.camphor.pltdata[1].append(f2)
             else:
-                self.camphor.pltdata1.append(f2)
-                self.camphor.pltdata2.append(f1)
+                self.camphor.pltdata[0].append(f2)
+                self.camphor.pltdata[1].append(f1)
             print('Appended to pltdata')
 
             self.camphor.VOIlist.append([x, z, y])
 
         elif key == 'd':
             print('Erased pltdata')
-            self.camphor.pltdata1 = []
-            self.camphor.pltdata2 = []
+            self.camphor.pltdata = [[] for i in range(self.numberOfDataSets)]
 
         elif key=="v":
             picker = vtk.vtkPropPicker()
@@ -1230,48 +1205,43 @@ class vtkView(QtGui.QFrame):
     def calculatedF(self):
         # Calculates the baseline fluorescence
         # For later convenience, we do NOT cast is to uint8
-        self.baseline1 = numpy.zeros(self.tdata1[0].shape)
-        for i in range(self.ini['baseline_endframe']):
-            self.baseline1 += self.tdata1[i]
-        self.baseline1 /= self.ini['baseline_endframe']
 
-        self.dFdata1 = self.tdata1.copy()
-        self.dFdata1 = [numpy.maximum(0, self.tdata1[i] - self.baseline1).astype(numpy.uint8) for i in range(self.nt)]
+        self.baseline = [numpy.zeros(self.tdata[i][0].shape) for i in range(self.numberOfDataSets)]
+        self.dFdata = [self.tdata[i].copy() for i in range(self.numberOfDataSets)]
+        for i in range(self.numberOfDataSets):
+            for t in range(self.ini['baseline_endframe']):
+                self.baseline[i] += self.tdata[i][t]
+            self.baseline[i] /= self.ini['baseline_endframe']
 
-        if (self.numberOfDataSets == 2):
-            self.baseline2 = numpy.zeros(self.tdata2[0].shape)
-            for i in range(self.ini['baseline_endframe']):
-                self.baseline2 += self.tdata2[i]
-            self.baseline2 /= self.ini['baseline_endframe']
+        self.dFdata = [[numpy.maximum(0, self.data[i][t] - self.baseline[i]).astype(numpy.uint8) for t in range(self.nt)]
+                       for i in range(self.numberOfDataSets)]
 
-            self.dFdata2 = self.tdata2.copy()
-            self.dFdata2 = [numpy.maximum(0, self.tdata2[i] - self.baseline2).astype(numpy.uint8) for i in range(self.nt)]
 
     def calculateDiff(self, data1, data2, transforms1=(), transforms2=()):
         # Calculates the difference in fluorescence between two sets of data
         # This requires the two data sets to have, of course, the same dimensions
 
-        self.data1 = [numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]
+        self.data = [[numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]]
         for t in transforms1:
             if t.active:
                 data1 = t.apply(data1)
         for t in transforms2:
             if t.active:
                 data2 = t.apply(data2)
-        self.tdata1 = [numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]
+        self.tdata = [[numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]]
 
     def calculatetDiff(self, data, transforms=()):
         # Calculates the difference in fluorescence between neighboring time frames
 
-        self.data1 = [numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double)) / 2 + 128)
-                     for i in range(len(data)-1)]
+        self.data = [[numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double)) / 2 + 128)
+                     for i in range(len(data)-1)]]
 
         for t in transforms:
             if t.active:
                 data = t.apply(data)
 
-        self.tdata1 = [numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double))/2 + 128)
-                      for i in range(len(data)-1)]
+        self.tdata = [[numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double))/2 + 128)
+                      for i in range(len(data)-1)]]
 
     def setColorMap(self, colormap=None):
         if colormap is None:
@@ -1298,10 +1268,10 @@ class vtkView(QtGui.QFrame):
 
 
         if isinstance(self.sliceColorMaps[colormap], list):
-            self.slice1.SetLookupTable(self.sliceLookupTables[colormap][0])
-            self.slice2.SetLookupTable(self.sliceLookupTables[colormap][1])
+            self.slice[0].SetLookupTable(self.sliceLookupTables[colormap][0])
+            self.slice[1].SetLookupTable(self.sliceLookupTables[colormap][1])
         else:
-            self.slice1.SetLookupTable(self.sliceLookupTables[colormap])
+            self.slice[0].SetLookupTable(self.sliceLookupTables[colormap])
 
     def makeColorMaps(self):
         self.colorMaps = {}

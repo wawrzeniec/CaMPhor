@@ -156,8 +156,8 @@ class camphorVOIExtractionMethod(ABC):
 
     def updateVOIs(self, vtkView, baseData, VOIdata):
         self.computeVOIs(baseData, VOIdata)
-        vtkView.importer1.Modified()
-        vtkView.importer2.Modified()
+        for i in range(vtkView.numberOfDataSets):
+            vtkView.importer[i].Modified()
         vtkView.renderAll(deletePanel=False)
 
 class sliderLabel(QtGui.QWidget):

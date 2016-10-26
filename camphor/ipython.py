@@ -17,7 +17,8 @@ import vtk
 import camphor.DataIO as DataIO
 
 app = QtGui.QApplication(sys.argv)
-self = camphorapp.camphor()
+camphor = camphorapp.camphor()
+self=camphor.vtkView
 
 # to reload if any changes have been made
 # imp.reload(camphor); del self

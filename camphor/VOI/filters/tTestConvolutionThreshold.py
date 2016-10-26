@@ -102,7 +102,7 @@ class tTestConvolutionThreshold(camphorVOIExtractionMethod):
         print('computing VOIs')
         q = numpy.less(VOIbase, self.parameters.pThresh)
         q2 = ndimage.convolve(q.astype(numpy.uint8), numpy.ones([self.parameters.cubeSize] * 3))
-        q3 = (numpy.greater(q2, self.parameters.fThresh) * 128).astype(numpy.uint8)
+        q3 = (numpy.greater(q2, self.parameters.fThresh)).astype(numpy.uint8)
         VOIdata[:] = q3
 
     def getProgress(self):
