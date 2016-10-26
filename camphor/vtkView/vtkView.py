@@ -991,8 +991,6 @@ class vtkView(QtGui.QFrame):
         r = t.to_rgba(range(self.numberOfDataSets))
         print("Retrieved colormap")
 
-        opacityMaps = [vtk.vtkPiecewiseFunction() for i in range(self.numberOfDataSets)]
-        colorMaps = [vtk.vtkColorTransferFunction() for i in range(self.numberOfDataSets)]
         table = [vtk.vtkLookupTable() for i in range(self.numberOfDataSets)]
         print("created vtk objects")
 
@@ -1001,50 +999,20 @@ class vtkView(QtGui.QFrame):
             table[i].SetAlphaRange(0,1)
             table[i].SetTableValue(0, [0,0,0,0])
             # table[i].SetTableValue(1, numpy.append(r[i,0:3],1))
-            table[i].SetTableValue(1, [i==0,i==1,i==0,1])
+            table[i].SetTableValue(1, [int(i==0),int(i==1),int(i==2),1])
             table[i].Build()
 
+        opacityMap = vtk.vtkPiecewiseFunction()
+        opacityMap.AddPoint(0,0)
+        opacityMap.AddPoint(1, 0.25)
+
+        colorMaps = [vtk.vtkColorTransferFunction() for i in range(3)]
+        for i in range(3):
             colorMaps[i].SetColorSpaceToRGB()
             colorMaps[i].AddRGBPoint(0, 0, 0, 0)
-            colorMaps[i].AddRGBPoint(1, r[i,0], r[i,1], r[1,2])
-            opacityMaps[i].AddPoint(0,0)
-            opacityMaps[i].AddPoint(1, 1)
+            # colorMaps[i].AddRGBPoint(1, r[i,0], r[i,1], r[1,2])
+            colorMaps[i].AddRGBPoint(1, int(i==0), int(i==1), int(i==2))
 
-        print("done")
-
-        print("Creating color images...")
-        for i in range(self.numberOfDataSets):
-            images[i].SetInputConnection(self.importer[i].GetOutputPort())
-            images[i].SetLookupTable(table[i])
-            images[i].PassAlphaToOutputOn()
-
-        # Connects the importer to the volume mapper and to the slicer
-        self.blender.RemoveAllInputConnections(0)
-        self.sliceBlender.RemoveAllInputConnections(0)
-        self.blender.SetBlendModeToNormal()
-        self.sliceBlender.SetBlendModeToNormal()
-
-        print("adding connections to blenders....")
-        for i in range(self.numberOfDataSets):
-            print("component {:d}".format(i))
-            self.blender.AddInputConnection(self.importer[i].GetOutputPort())
-            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
-            self.slice[i].SetLookupTable(table[i])
-            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
-            self.blender.SetOpacity(i, 0.5)
-            self.sliceBlender.SetOpacity(i, 0.5)
-        print("done")
-
-
-
-        print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
-
-        # Connects the objects to their mapper
-        print("Connecting to mappers...")
-        print("volume")
-        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
-        print("slice")
-        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
         print("done")
 
         sagittal = vtk.vtkMatrix4x4()
@@ -1058,20 +1026,45 @@ class vtkView(QtGui.QFrame):
             self.slice[i].SetInterpolationModeToLinear()
             self.slice[i].SetResliceAxes(sagittal)
 
-        # print("Setting Properties")
-        # self.volumeProperty = vtk.vtkVolumeProperty()
-        # self.volumeProperty.ShadeOff()
-        #
-        # for i in range(self.numberOfDataSets):
-            # print("i={:d}. setting property".format(i))
-            # self.volumeProperty.SetColor(i, colorMaps[i])
-            # print("done color")
-            # slices[i].SetLookupTable(table[i])
-            # print("done lookup table")
-            # self.volumeProperty.SetScalarOpacity(i, opacityMaps[i])
-            # print("done opacity")
+        for i in range(3):
+            self.volumeProperty.SetColor(i, colorMaps[i])
+            self.volumeProperty.SetScalarOpacity(i, opacityMap)
+        self.volumeProperty.SetScalarOpacity(3, opacityMap)
 
-        firstTime = True
+        print("Creating color images...")
+        for i in range(self.numberOfDataSets):
+            images[i].SetInputConnection(self.importer[i].GetOutputPort())
+            images[i].SetLookupTable(table[i])
+            # images[i].PassAlphaToOutputOn()
+
+        # Connects the importer to the volume mapper and to the slicer
+        self.blender.RemoveAllInputConnections(0)
+        self.sliceBlender.RemoveAllInputConnections(0)
+        self.blender.SetBlendModeToNormal()
+        self.sliceBlender.SetBlendModeToNormal()
+
+        print("adding connections to blenders....")
+        for i in range(self.numberOfDataSets):
+            print("component {:d}".format(i))
+            self.blender.AddInputConnection(images[i].GetOutputPort())
+            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
+            self.slice[i].SetLookupTable(table[i])
+            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
+            self.blender.SetOpacity(i, 0.5)
+            self.sliceBlender.SetOpacity(i, 0.5)
+        print("done")
+
+        print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
+
+        # Connects the objects to their mapper
+        print("Connecting to mappers...")
+        print("volume")
+        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
+        print("slice")
+        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
+        print("done")
+
+        # firstTime = True
         if firstTime:
             # If this is the first time we add data, we create
             # a new volume object for the 3D rendering, and
