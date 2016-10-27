@@ -404,13 +404,13 @@ class camphor(QtGui.QMainWindow):
         f._parameters = self.project.brain[brain].trial[trial].VOIfilterParams
 
         if view==1:
-            fun = self.vtkView.overlay
+            fun = self.vtkView.overlayVOIHRS
             VOIpanel = self.vtkView.VOIpanel
         elif view==2:
-            fun = self.vtkView2.overlay
+            fun = self.vtkView2.overlayVOIHRS
             VOIpanel = self.vtkView2.VOIpanel
         else:
-            fun = self.vtkView.overlay
+            fun = self.vtkView.overlayVOIHRS
             VOIpanel = self.vtkView.VOIpanel
 
         VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
@@ -421,7 +421,7 @@ class camphor(QtGui.QMainWindow):
         VOIbase = self.resampleData(VOIbase, HRSdata[0], HRSdata[0].shape)
 
         HRStransforms = self.project.brain[brain].highResScan.transforms
-        fun(data2=VOIdata, data1=HRSdata, transforms1=HRStransforms, colormap='OverlayVOI')
+        fun(data2=VOIdata, data1=HRSdata, transforms1=HRStransforms, colormap='Standard')
 
         VOIpanel = f.controlWidget(self.vtkView, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
         if view==1:
