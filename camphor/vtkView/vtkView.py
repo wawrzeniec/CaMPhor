@@ -999,7 +999,7 @@ class vtkView(QtGui.QFrame):
             table[i].SetValueRange(0,255)
             table[i].SetRange(0, 255)
             table[i].SetAlphaRange(0, 255)
-            table[0].SetNumberOfTableValues(256)
+            table[i].SetNumberOfTableValues(256)
             table[i].Build()
             table[i].SetTableValue(0, [0,0,0,0])
             # table[i].SetTableValue(1, numpy.append(r[i,0:3],1))
