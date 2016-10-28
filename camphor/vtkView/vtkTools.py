@@ -1,6 +1,8 @@
 import vtk
 
 # The qualitative colormap for displaying multiple sets of VOIs together
+# Would be best to have an algorithmic representation but the matplotlib color maps
+# don't seem to give very good results
 _VOImap = [[0.50, 0.00, 0.00],
            [0.00, 0.50, 0.00],
            [0.00, 0.00, 0.50],
@@ -13,22 +15,61 @@ _VOImap = [[0.50, 0.00, 0.00],
            [0.15, 0.35, 0.00],
            [0.00, 0.50, 0.00]]
 
-class camphorBlendedVolume(object):
+class camphorVolume(object):
+    """
+    class vtkTools.camphorVolume
+
+    This is the base class for volume objects in camphor
+
+    The class contains vtk objects for displaying a volume and a slice from the input data
+
+    The volume can be displayed by directly adding its 'volume' and 'sliceActor' properties to a VTK renderer,
+    or by connecting its 'output' and 'sliceOutput' properties via the GetOutputPort() method for further processing.
+
+    """
     def __init__(self):
+
+        # Objects for volume rendering
         self.volume = vtk.vtkVolume()
         self.volumeMapper = vtk.vtkSmartVolumeMapper()
         self.volumeProperty = vtk.vtkVolumeProperty()
 
+        # Objects for slice rendering
         self.sliceActor = vtk.vtkImageActor()
         self.sliceMapper = vtk.vtkImageResliceMapper()
         self.sliceProperty = vtk.vtkImageProperty()
 
+        # Objects for importing image data from numpy arrays
+        # and for reslicing the data
+        #
+        # self.importer is an array of vtkImageImport objects
+        # self.slice is an array of vtkImageResliceToColors objects
+        #
+        # For both the number of objects depends on the number of input data sets, and thus
+        # are allocated are run time by the implementing class
+        self.importer = []
+        self.slice = []
+
+        # Objects that point to the output algorithms
+        # These must be specified at run time by the implementing class
+        self.output = None
+        self.sliceOutput = None
+
+        # Some properties of the data
+        self.numberOfDataSets = 0
+        self.numberOfTimeFrames = 0
+
+class camphorBlendedVolume(camphorVolume):
+    def __init__(self):
+        super(camphorBlendedVolume, self).__init__()
+
         self.blender = vtk.vtkImageBlend()
         self.sliceBlender = vtk.vtkImageBlend()
 
-        self.importer = []
-        self.slice = []
         self.image = []
+
+        self.output = self.blender
+        self.sliceOutput = self.sliceBlender
         
 def mergeVOIs(data):
     """
@@ -145,6 +186,8 @@ def mergeVOIs(data):
     cV.importer = importer
     cV.slice = slice
     cV.image = image
+    cV.numberOfDataSets = numberOfDataSets
+    cV.numberOfTimeFrames = 1
     
     return cV
     
@@ -161,7 +204,6 @@ def VOILookupTables(numberOfDataSets):
     """
 
     table = [vtk.vtkLookupTable() for i in range(numberOfDataSets)]
-    print("created vtk objects")
 
     for i in range(numberOfDataSets):
         table[i].SetValueRange(0, 255)
