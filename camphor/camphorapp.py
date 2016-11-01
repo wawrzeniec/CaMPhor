@@ -460,13 +460,13 @@ class camphor(QtGui.QMainWindow):
             VOIpanel = self.vtkView.VOIpanel
 
 
-        VOIdata = [self.project.brain[i].trial[j].VOIdata.astype(numpy.uint8) for i,j, in zip(brain,trial)]
+        VOIdata = [self.project.brain[i].trial[j].VOIdata for i,j, in zip(brain,trial)]
         VOIbase = [self.project.brain[i].trial[j].VOIbase for i,j, in zip(brain,trial)]
 
         # fun(data1=[VOIdata[0]], data2=[VOIdata[1]], colormap='Overlay')
         fun(data=VOIdata)
 
-        VOIpanel = [f[i].controlWidget(self.vtkView, VOIbase[i], VOIdata[i],
+        VOIpanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
                                     message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i])) for i in range(len(VOIdata))]
         if view == 1:
             self.vtkView.VOIpanel = VOIpanel

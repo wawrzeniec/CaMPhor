@@ -8,6 +8,7 @@ from camphor import utils
 import numpy
 import copy
 from matplotlib import cm
+from camphor.vtkView import vtkTools
 
 class vtkView(QtGui.QFrame):
     """
@@ -59,6 +60,11 @@ class vtkView(QtGui.QFrame):
         self.VOIpanel = None
 
         self.ini = ini
+
+        self.displayedVolumes = []
+        self.displayedActors = []
+        self.stack = vtkTools.camphorVolume()
+        self.VOI = vtkTools.camphorVolume()
 
         # Builds the colormaps
         self.makeColorMaps()
@@ -197,6 +203,7 @@ class vtkView(QtGui.QFrame):
                                             QToolButton::pressed {background: #ACF; border: 1px solid #ACF; border-radius: 2px;}
                                             QToolButton#displayF::checked {image: url('res/icons/F_red-01.png');}
                                             QToolButton#displaydF::checked {image: url('res/icons/dF_red-01.png');}
+                                            QToolButton::disabled {background: #CCC;}
 
                                             """)
 
@@ -956,8 +963,6 @@ class vtkView(QtGui.QFrame):
                 :return: nothing
                 """
 
-        firstTime = (self.nt == 0)  # If this is the first time data is assigned, we will need to create some objects
-        print(firstTime)
         self.nt = 1
         self.data = [[d] for d in data] # often used to check the shape of the data
         self.currentdata = self.data
@@ -967,141 +972,44 @@ class vtkView(QtGui.QFrame):
 
         self.numberOfDataSets = len(data)
         print("number of datasets: {:d}".format(self.numberOfDataSets))
-        # In the case where we have more than 2 data sets,
-        # we cannot rely on the vtkView member objects, thus
-        # we create arrays of VTK objects to import an overlay the data
 
-        print("creating importers, imageMapToColors and slices...")
-        self.importer = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
-        images = [vtk.vtkImageMapToColors() for i in range(self.numberOfDataSets)]
-        self.slice = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer[i].SetDataExtentToWholeExtent()
-            self.importer[i].SetDataScalarTypeToUnsignedChar()
-            self.importer[i].SetImportVoidPointer(data[i])
-            self.importer[i].Modified()
-        print("done.")
+        self.VOI = vtkTools.mergeVOIs(data)
+        self.slice = self.VOI.slice
 
+        # No deltaF/F data with VOIs
         self.displaydFAction.setEnabled(False)
 
-        # Creates the colormap
-        print("creating color maps and lookup tables...")
-        t = cm.ScalarMappable(None, "nipy_spectral") #"Set1")
-        r = t.to_rgba(range(self.numberOfDataSets))
-        print("Retrieved colormap")
+        self.displayProps(self.VOI.volume, self.VOI.sliceActor)
+        self.initView(lx,ly,lz)
 
-        table = [vtk.vtkLookupTable() for i in range(self.numberOfDataSets)]
-        print("created vtk objects")
+    def removeAllProps(self):
+        for v in self.displayedVolumes:
+            self.renderer.RemoveVolume(v)
+        for a in self.displayedActors:
+            self.sliceRenderer.RemoveActor(a)
 
+    def displayProps(self, volumes, actors):
+        self.removeAllProps()
+        if not isinstance(volumes,list):
+            volumes = [volumes]
+        if not isinstance(actors, list):
+            actors = [actors]
+        self.displayedVolumes = volumes
+        self.displayedActors = actors
+        self.addVolumes()
+        self.addActors()
 
-        for i in range(self.numberOfDataSets):
-            table[i].SetValueRange(0,255)
-            table[i].SetRange(0, 255)
-            table[i].SetAlphaRange(0, 255)
-            table[i].SetNumberOfTableValues(256)
-            table[i].Build()
-            table[i].SetTableValue(0, [0,0,0,0])
-            # table[i].SetTableValue(1, numpy.append(r[i,0:3],1))
-            for j in range(1,256):
-                table[i].SetTableValue(j, [int(i==0),int(i==1),int(i==2),1])
+    def addVolumes(self):
+        for v in self.displayedVolumes:
+            self.renderer.AddVolume(v)
 
+    def addActors(self):
+        for a in self.displayedActors:
+            self.sliceRenderer.AddActor(a)
 
-        opacityMap = vtk.vtkPiecewiseFunction()
-        opacityMap.AddPoint(0,0)
-        opacityMap.AddPoint(1, 0.5)
-
-        colorMaps = [vtk.vtkColorTransferFunction() for i in range(4)]
-        for i in range(4):
-            colorMaps[i].SetColorSpaceToRGB()
-            colorMaps[i].AddRGBPoint(0, 0, 0, 0)
-            # colorMaps[i].AddRGBPoint(1, r[i,0], r[i,1], r[1,2])
-            colorMaps[i].AddRGBPoint(1, int(i==0), int(i==1), int(i==2))
-
-        print("done")
-
-        sagittal = vtk.vtkMatrix4x4()
-        sagittal.DeepCopy((0, 1, 0, 0,
-                           0, 0, 1, 127.5,
-                           1, 0, 0, 0,
-                           0, 0, 0, 1))
-
-        for i in range(self.numberOfDataSets):
-            self.slice[i].SetOutputDimensionality(2)
-            self.slice[i].SetInterpolationModeToLinear()
-            self.slice[i].SetResliceAxes(sagittal)
-
-        # self.volumeProperty.IndependentComponentsOff()
-        # opacityMap = vtk.vtkPiecewiseFunction()
-        # opacityMap.AddPoint(0, 0)
-        # opacityMap.AddPoint(1, 0.5)
-        # self.volumeProperty.SetScalarOpacity(0, opacityMap)
-
-        self.volumeProperty.IndependentComponentsOn()
-        for i in range(4):
-            self.volumeProperty.SetColor(i, colorMaps[i])
-            self.volumeProperty.SetScalarOpacity(i, opacityMap)
-
-        print("Creating color images...")
-        for i in range(self.numberOfDataSets):
-            images[i].SetLookupTable(table[i])
-            images[i].SetInputConnection(self.importer[i].GetOutputPort())
-            # images[i].PassAlphaToOutputOn()
-
-        # Connects the importer to the volume mapper and to the slicer
-        self.blender.RemoveAllInputConnections(0)
-        self.sliceBlender.RemoveAllInputConnections(0)
-        self.blender.SetBlendModeToNormal()
-        self.sliceBlender.SetBlendModeToNormal()
-
-        print("adding connections to blenders....")
-        for i in range(self.numberOfDataSets):
-            print("component {:d}".format(i))
-            self.blender.AddInputConnection(images[i].GetOutputPort())
-            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
-            # For some reason, if the first input is RGBA then subsequent inputs become dimmer and dimmer
-            if i==0:
-                self.slice[i].SetOutputFormatToRGB()
-            else:
-                self.slice[i].SetOutputFormatToRGBA()
-            self.slice[i].SetLookupTable(table[i])
-            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
-            self.blender.SetOpacity(i, 0.5)
-            self.sliceBlender.SetOpacity(i, 0.5)
-        print("done")
-
-        print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
-
-        # Connects the objects to their mapper
-        print("Connecting to mappers...")
-        print("volume")
-        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
-        print("slice")
-        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
-        print("done")
-
-        # firstTime = True
-        if firstTime:
-            # If this is the first time we add data, we create
-            # a new volume object for the 3D rendering, and
-            # another one for the 2D slice
-            self.volume = vtk.vtkVolume()
-            self.volume.SetMapper(self.volumeMapper)
-            self.volume.SetProperty(self.volumeProperty)
-            self.renderer.AddVolume(self.volume)
-
-            self.sliceVolume = vtk.vtkImageActor() #vtk.vtkVolume()
-            self.sliceVolume.SetMapper(self.sliceMapper)
-            self.sliceRenderer.AddActor(self.sliceVolume)
-
-            # Displays the plane in the 3D view at the center of the sample
-            self.initPlane(lx, ly, lz)
-
-        print('Setting slice properties')
-        sProp = self.sliceVolume.GetProperty()
-        sProp.SetColorLevel(20)
-        sProp.SetColorWindow(20)
-        sProp.SetInterpolationTypeToNearest()
+    def initView(self, lx, ly ,lz):
+        # Displays the plane in the 3D view at the center of the sample
+        self.initPlane(lx, ly, lz)
 
         # Adjusts slider max value to match the data size
         self.zslider.setValue(self.planez)

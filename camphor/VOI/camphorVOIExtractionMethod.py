@@ -71,7 +71,7 @@ class camphorVOIExtractionMethod(ABC):
     def setMessage(self, targetFunc):
         self.message = targetFunc
 
-    def controlWidget(self, vtkView, baseData, VOIdata, message=None):
+    def controlWidget(self, camphor, baseData, VOIdata, message=None):
         """
         VOIextractionMethod.controlWidget()
 
@@ -93,7 +93,7 @@ class camphorVOIExtractionMethod(ABC):
             return None
         
         def updateVOIs():
-            self.updateVOIs(vtkView, baseData, VOIdata)
+            self.updateVOIs(camphor, baseData, VOIdata)
             pass
         
         def setParamNumeric(key, value):
@@ -102,7 +102,7 @@ class camphorVOIExtractionMethod(ABC):
         def setParamList(key, valueList, value):
             setattr(self.parameters, key, valueList[value])
 
-        controlPanel = QtGui.QWidget(parent=vtkView.camphor)
+        controlPanel = QtGui.QWidget(parent=camphor)
         controlPanel.setWindowFlags(QtCore.Qt.Tool)
         if message is None:
             panelTitle = "VOI Control Panel"
@@ -154,11 +154,15 @@ class camphorVOIExtractionMethod(ABC):
         controlPanel.show()
         return controlPanel
 
-    def updateVOIs(self, vtkView, baseData, VOIdata):
+    def updateVOIs(self, camphor, baseData, VOIdata):
         self.computeVOIs(baseData, VOIdata)
-        for i in range(vtkView.numberOfDataSets):
-            vtkView.importer[i].Modified()
-        vtkView.renderAll(deletePanel=False)
+        for i in camphor.vtkView.VOI.importer:
+            i.Modified()
+        for i in camphor.vtkView2.VOI.importer:
+            i.Modified()
+
+        camphor.vtkView.renderAll(deletePanel=False)
+        camphor.vtkView2.renderAll(deletePanel=False)
 
 class sliderLabel(QtGui.QWidget):
     def __init__(self, paramName, paramValue, minValue, maxValue, step, dataType, target):
