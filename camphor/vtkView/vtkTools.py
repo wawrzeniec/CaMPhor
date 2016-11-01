@@ -220,7 +220,7 @@ def VOILookupTables(numberOfDataSets):
             elif numberOfDataSets == 2:
                 # Two data sets --> magenta and green
                 table[i].SetTableValue(j, [int(i==0), int(i==1), int(i==0), 1])
-            elif numberOfDataSets == 4:
+            elif numberOfDataSets == 3:
                 # Three data sets --> RGB
                 table[i].SetTableValue(j, [int(i==0), int(i==1), int(i==2), 1])
             else:
