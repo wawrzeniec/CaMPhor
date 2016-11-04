@@ -233,7 +233,7 @@ class registerToHighResolutionScanTransform(transform.transform):
         print("Applying registerToHighResolutionScanTransform")
         for i,d in enumerate(data):
             image = sitk.GetImageFromArray(d.astype(numpy.double))
-            rimage = sitk.Resample(image, self.transform[0], sitk.sitkLinear, 0.0, image.GetPixelIDValue())
+            rimage = sitk.Resample(image, self.transform[i], sitk.sitkLinear, 0.0, image.GetPixelIDValue())
             transformed_data.append(sitk.GetArrayFromImage(rimage).astype(numpy.uint8))
 
         return transformed_data

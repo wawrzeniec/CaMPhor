@@ -63,8 +63,10 @@ class vtkView(QtGui.QFrame):
 
         self.displayedVolumes = []
         self.displayedActors = []
-        self.stack = vtkTools.camphorVolume()
-        self.VOI = vtkTools.camphorVolume()
+        self.stack = vtkTools.camphorDisplayObject()
+        self.stackBeingDisplayed = False
+        self.VOI = vtkTools.camphorDisplayObject()
+        self.VOIBeingDisplayed = False
 
         # Builds the colormaps
         self.makeColorMaps()
@@ -417,88 +419,20 @@ class vtkView(QtGui.QFrame):
         :return: nothing
         """
 
+        self.stack = vtkTools.makeStack(d, transforms, colormap=colormap)
+        self.slice = [self.stack.slice]
 
-        firstTime = (self.nt==0)    # If this is the first time data is assigned, we will need to create some objects
-        self.nt = len(d)            # The number of time slices in the data
-        lz ,ly ,lx = d[0].shape     # The shape of the data (VTK is inverted wrt numpy)
-        print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx,ly,lz,self.nt))
-
-        self.numberOfDataSets = 1
-        self.data = [d]
-        self.tdata = [copy.deepcopy(d)]
-        for t in transforms:
-            if t.active:
-                self.tdata[0] = t.apply(self.tdata[0])
-
-        # Sets the importer to import the first frame of the supplied data
-        self.importer[0].SetWholeExtent(0, lx-1, 0, ly-1, 0, lz-1)
-        self.importer[0].SetDataExtentToWholeExtent()
-        if dataType==numpy.uint8:
-            self.importer[0].SetDataScalarTypeToUnsignedChar()
-        elif dataType==numpy.uint16:
-            self.importer[0].SetDataScalarTypeToUnsignedShort()
-        elif dataType==numpy.int:
-            self.importer[0].SetDataScalarTypeToInt()
-
-        self.importer[0].SetImportVoidPointer(self.tdata[0][0])
-        self.importer[0].Modified()
-        self.currentdata = self.tdata
-
-        if self.nt > 1:
+        if self.stack.numberOfTimeFrames > 1:
             self.displaydFAction.setEnabled(True)
-            self.calculatedF()
         else:
             self.displaydFAction.setEnabled(False)
 
-        # Adjusts the colormap
-        self.setColorMap(colormap)
-        self.colormap = colormap    # To remember what was the colormap when we first displayed this object
+        self.displayProps(self.stack.volume, self.stack.sliceActor)
+        self.stackBeingDisplayed = True
+        self.VOIBeingDisplayed = False
 
-        # Connects the importer to the volume mapper and to the slicer
-        self.volumeMapper.SetInputConnection(self.importer[0].GetOutputPort())
-        self.slice[0].SetInputConnection(self.importer[0].GetOutputPort())
-        self.slice[0].Update()
-
-        # Connects the slicer to its mapper
-        self.sliceMapper.SetInputConnection(self.slice[0].GetOutputPort())
-
-        if firstTime:
-            # If this is the first time we add data, we create
-            # a new volume object for the 3D rendering, and
-            # another one for the 2D slice
-            self.volume = vtk.vtkVolume()
-            self.volume.SetMapper(self.volumeMapper)
-            self.volume.SetProperty(self.volumeProperty)
-            self.renderer.AddVolume(self.volume)
-
-            self.sliceVolume = vtk.vtkImageActor() # vtk.vtkVolume()
-            self.sliceVolume.SetMapper(self.sliceMapper)
-            # self.sliceVolume.SetProperty(self.sliceVolumeProperty)
-            # self.sliceRenderer.AddVolume(self.sliceVolume)
-            self.sliceRenderer.AddActor(self.sliceVolume)
-
-            # Displays the plane in the 3D view at the center of the sample
-            self.initPlane(lx, ly, lz)
-
-        # Adjusts slider max value to match the data size
-        self.zslider.setValue(self.planez)
-        self.tslider.setMaximum(self.nt-1)
-        if(self.curPlaneOrientation==0):
-            self.zslider.setMaximum(ly - 1) # for VTK, the vertical axis is y, although we call it z
-        elif(self.curPlaneOrientation==1):
-            self.zslider.setMaximum(lz - 1)  # for VTK, the vertical axis is y, although we call it z
-        elif(self.curPlaneOrientation==2):
-            self.zslider.setMaximum(lx - 1)  # for VTK, the vertical axis is y, although we call it z
-        else:
-            print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
-
-        # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions()
-        self.setTimeSlice()
-
-        # Updates the view
-        self.resetAll()
-        self.renderAll(deletePanel=True)
+        lx,ly,lz = self.stack.dimensions
+        self.initView(lx,ly,lz,self.stack.numberOfTimeFrames)
 
     def initPlane(self,lx,ly,lz):
         """
@@ -541,6 +475,8 @@ class vtkView(QtGui.QFrame):
         self.plane.Push(z-self.planez)
         self.planez = z
 
+        nSlices = len(self.slice)
+
         if self.curPlaneOrientation == 0:
             # Updates the slicer
             sagittal = vtk.vtkMatrix4x4()
@@ -548,7 +484,7 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, z,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -566,7 +502,7 @@ class vtkView(QtGui.QFrame):
                                1, 0, 0, 0,
                                0, 0, 1, z,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -584,7 +520,7 @@ class vtkView(QtGui.QFrame):
                                0, 1, 0, 0,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -610,7 +546,14 @@ class vtkView(QtGui.QFrame):
         """
 
         self.curPlaneOrientation = orientation
-        lz, ly, lx = self.data[0][0].shape
+        if self.stackBeingDisplayed:
+            lx, ly, lz = self.stack.dimensions
+        elif self.VOIBeingDisplayed:
+            lx, ly, lz = self.VOI.dimensions
+        else:
+            return
+
+        nSlices = len(self.slice)
 
         if orientation == 0:
             # Updates the slicer
@@ -623,7 +566,7 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, z,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -654,7 +597,7 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, 0,
                                1, 0, 0, z,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -685,7 +628,7 @@ class vtkView(QtGui.QFrame):
                                0, 0, 1, 0,
                                1, 0, 0, 0,
                                0, 0, 0, 1))
-            for i in range(self.numberOfDataSets):
+            for i in range(nSlices):
                 self.slice[i].SetResliceAxes(sagittal)
                 self.slice[i].Update()
 
@@ -705,15 +648,13 @@ class vtkView(QtGui.QFrame):
             self.zslider.setMaximum(lx-1)
             self.zslider.setValue(z)
 
-        for i in range(self.numberOfDataSets):
+        for i in range(nSlices):
             self.slice[i].Update()
 
         # Updates the view
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.renderAll()
 
-    def setCubeDimensions(self):
-        lz, ly, lx = self.data[0][0].shape
+    def setCubeDimensions(self, lx, ly, lz):
 
         if self.curPlaneOrientation == 0:
             self.cube.SetBounds(-5, lx + 5, self.planez - 0.5, self.planez + 0.5, -5, lz + 5)
@@ -734,58 +675,32 @@ class vtkView(QtGui.QFrame):
         """
 
         t = self.tslider.value()
-        if(t < self.nt):
-            for i in range(self.numberOfDataSets):
-                self.importer[i].SetImportVoidPointer(self.currentdata[i][t])
-                self.importer[i].Modified()
-                self.slice[i].Update()
+        if self.stackBeingDisplayed:
+            self.stack.setTimeFrame(t)
 
         self.tlabel.setText("t:{:d}".format(t))
 
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.renderAll()
 
     def displayF(self):
         self.displayFAction.setChecked(True)
         self.displaydFAction.setChecked(False)
 
-        lz, ly, lx = self.tdata[0][0].shape
-
-        if self.numberOfDataSets == 1:
-            self.setColorMap(self.colormap)
-
-        # Sets the importer to point to the right array
-        t = self.tslider.value()
-        self.currentdata = self.tdata
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer[i].SetDataExtentToWholeExtent()
-            self.importer[i].SetImportVoidPointer(self.tdata[i][t])
-            self.importer[i].Modified()
-            self.slice[i].Update()
+        if self.stackBeingDisplayed:
+            self.stack.setDisplayModeToRaw()
 
         # updates the display
-        self.renwin.Render()
-        self.slicerenwin.Render()
+        self.renderAll()
 
     def displaydF(self):
         self.displayFAction.setChecked(False)
         self.displaydFAction.setChecked(True)
 
-        lz, ly, lx = self.dFdata[0][0].shape
+        if self.stackBeingDisplayed:
+            self.stack.setDisplayModeToDF()
 
-        if self.numberOfDataSets == 1:
-            self.setColorMap('Standard')
-
-        # Sets the importer to point to the right array
-        self.currentdata = self.dFdata
-        t = self.tslider.value()
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer[i].SetDataExtentToWholeExtent()
-            self.importer[i].SetImportVoidPointer(self.dFdata[i][t])
-            self.importer[i].Modified()
-            self.slice[i].Update()
+        # updates the display
+        self.renderAll()
 
         # updates the display
         self.renwin.Render()
@@ -941,7 +856,7 @@ class vtkView(QtGui.QFrame):
             print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
 
         # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions()
+        self.setCubeDimensions(lx,ly,lz)
         self.setTimeSlice()
 
         # Updates the view
@@ -980,7 +895,9 @@ class vtkView(QtGui.QFrame):
         self.displaydFAction.setEnabled(False)
 
         self.displayProps(self.VOI.volume, self.VOI.sliceActor)
-        self.initView(lx,ly,lz)
+        self.initView(lx,ly,lz,1)
+        self.stackBeingDisplayed = False
+        self.VOIBeingDisplayed = True
 
     def removeAllProps(self):
         for v in self.displayedVolumes:
@@ -1007,13 +924,13 @@ class vtkView(QtGui.QFrame):
         for a in self.displayedActors:
             self.sliceRenderer.AddActor(a)
 
-    def initView(self, lx, ly ,lz):
+    def initView(self, lx, ly ,lz, t):
         # Displays the plane in the 3D view at the center of the sample
         self.initPlane(lx, ly, lz)
 
         # Adjusts slider max value to match the data size
         self.zslider.setValue(self.planez)
-        self.tslider.setMaximum(self.nt - 1)
+        self.tslider.setMaximum(t - 1)
         if (self.curPlaneOrientation == 0):
             self.zslider.setMaximum(ly - 1)  # for VTK, the vertical axis is y, although we call it z
         elif (self.curPlaneOrientation == 1):
@@ -1024,7 +941,7 @@ class vtkView(QtGui.QFrame):
             print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
 
         # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions()
+        self.setCubeDimensions(lx,ly,lz)
 
         # Updates the view
         self.resetAll()
@@ -1195,7 +1112,7 @@ class vtkView(QtGui.QFrame):
             print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
 
         # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions()
+        self.setCubeDimensions(lx,ly,lz)
 
         # Updates the view
         self.resetAll()
