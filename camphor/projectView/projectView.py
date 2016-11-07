@@ -184,16 +184,6 @@ class allItemsContextMenu(QtGui.QMenu):
     def __init__(self, treeview, brain, trial):
         super(allItemsContextMenu, self).__init__()
 
-        self.loadInView1 = QtGui.QAction('Load in view 1', self)
-        self.loadInView1.setStatusTip('Load selected trial in VTK view #1')
-        self.loadInView1.triggered.connect(
-            lambda x: treeview.camphor.openFileFromProject(brain=brain[0], trial=trial[0], view=1))
-
-        self.loadInView2 = QtGui.QAction('Load in view 2', self)
-        self.loadInView2.setStatusTip('Load selected trial in VTK view #2')
-        self.loadInView2.triggered.connect(
-            lambda x: treeview.camphor.openFileFromProject(brain=brain[0], trial=trial[0], view=2))
-
         self.showDiff = QtGui.QMenu('Show diff')
         self.showDiff.setStatusTip('Displays the difference of the two selected trials')
         self.showDiffAction1 = QtGui.QAction('In view 1', self)
@@ -211,6 +201,33 @@ class allItemsContextMenu(QtGui.QMenu):
         self.showtDiffAction2.triggered.connect(lambda x: treeview.camphor.showtDiff(brain, trial, view=2))
         self.showtDiff.addAction(self.showtDiffAction1)
         self.showtDiff.addAction(self.showtDiffAction2)
+
+        self.displayStack = QtGui.QMenu('Display z-stack')
+        self.displayStack.setStatusTip('Displays the z-stack of the selected trial in the specified view')
+        self.displayStackAction1 = QtGui.QAction('In view 1', self)
+        self.displayStackAction2 = QtGui.QAction('In view 2', self)
+        self.displayStackAction1.triggered.connect(lambda x: treeview.camphor.openFileFromProject(brain=brain[0], trial=trial[0], view=1))
+        self.displayStackAction2.triggered.connect(lambda x: treeview.camphor.openFileFromProject(brain=brain[0], trial=trial[0], view=2))
+        self.displayStack.addAction(self.displayStackAction1)
+        self.displayStack.addAction(self.displayStackAction2)
+
+        self.displayVOIs = QtGui.QMenu('Displays VOIs')
+        self.displayVOIs.setStatusTip('Displays the VOIs of the selected trial in the specified view')
+        self.displayVOIsAction1 = QtGui.QAction('In view 1', self)
+        self.displayVOIsAction2 = QtGui.QAction('In view 2', self)
+        self.displayVOIsAction1.triggered.connect(lambda x: treeview.camphor.displayVOIs(brain[0], trial[0], view=1))
+        self.displayVOIsAction2.triggered.connect(lambda x: treeview.camphor.displayVOIs(brain[0], trial[0], view=2))
+        self.displayVOIs.addAction(self.displayVOIsAction1)
+        self.displayVOIs.addAction(self.displayVOIsAction2)
+
+        self.overlayVOIsOnStack = QtGui.QMenu('Overlay VOIs of selected trial on stack image')
+        self.overlayVOIsOnStack.setStatusTip('Overlay VOIs of selected trial on stack image in the specified view')
+        self.overlayVOIsOnStackAction1 = QtGui.QAction('In view 1', self)
+        self.overlayVOIsOnStackAction2 = QtGui.QAction('In view 2', self)
+        self.overlayVOIsOnStackAction1.triggered.connect(lambda x: treeview.camphor.overlayVOIsOnStack(brain[0], trial[0], view=1))
+        self.overlayVOIsOnStackAction2.triggered.connect(lambda x: treeview.camphor.overlayVOIsOnStack(brain[0], trial[0], view=2))
+        self.overlayVOIsOnStack.addAction(self.overlayVOIsOnStackAction1)
+        self.overlayVOIsOnStack.addAction(self.overlayVOIsOnStackAction2)
 
         self.overlay = QtGui.QMenu('Overlay selected trials')
         self.overlay.setStatusTip('Overlays the selected trials in the specified view')
@@ -254,16 +271,22 @@ class allItemsContextMenu(QtGui.QMenu):
         self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain,trial))
 
         if(len(brain)==1):
-            self.addAction(self.loadInView1)
-            self.addAction(self.loadInView2)
-            self.addMenu(self.showtDiff)
+            self.addMenu(self.displayStack)
             hasVOI = treeview.camphor.project.brain[brain[0]].trial[trial[0]].VOIdata != []
             hasHRS = treeview.camphor.project.brain[brain[0]].highResScan is not None
+
+            hasVOIs = treeview.camphor.project.brain[brain[0]].trial[trial[0]].VOIdata != []
+            if hasVOIs:
+                self.addMenu(self.displayVOIs)
+                self.addMenu(self.overlayVOIsOnStack)
             if hasHRS:
                 self.addSeparator()
                 self.addMenu(self.overlayHRS)
                 if hasVOI:
                     self.addMenu(self.overlayVOIHRS)
+            self.addSeparator()
+            self.addMenu(self.showtDiff)
+
         elif(len(brain)==2):
             self.addMenu(self.showDiff)
             self.addSeparator()

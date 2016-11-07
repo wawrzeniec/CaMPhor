@@ -420,7 +420,7 @@ class vtkView(QtGui.QFrame):
         """
 
         self.stack = vtkTools.makeStack(d, transforms, colormap=colormap)
-        self.slice = [self.stack.slice]
+        self.slice =  self.stack.slice
 
         if self.stack.numberOfTimeFrames > 1:
             self.displaydFAction.setEnabled(True)
@@ -866,7 +866,6 @@ class vtkView(QtGui.QFrame):
         self.colormap = colormap
 
 
-
     def overlayVOIs(self, data):
         """
                 function vtkView.overlayVOIs(self, data)
@@ -882,12 +881,6 @@ class vtkView(QtGui.QFrame):
         self.data = [[d] for d in data] # often used to check the shape of the data
         self.currentdata = self.data
 
-        lz, ly, lx = data[0].shape  # The shape of the data (VTK is inverted wrt numpy)
-        print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
-
-        self.numberOfDataSets = len(data)
-        print("number of datasets: {:d}".format(self.numberOfDataSets))
-
         self.VOI = vtkTools.mergeVOIs(data)
         self.slice = self.VOI.slice
 
@@ -895,15 +888,42 @@ class vtkView(QtGui.QFrame):
         self.displaydFAction.setEnabled(False)
 
         self.displayProps(self.VOI.volume, self.VOI.sliceActor)
-        self.initView(lx,ly,lz,1)
+        self.initView(self.VOI.dimensions,1)
+        self.stackBeingDisplayed = False
+        self.VOIBeingDisplayed = True
+
+    def displayVOIs(self, VOIdata):
+        """
+                function vtkView.displayVOIs(self, data)
+
+                Displays a single VOI image in the VTK view
+                data is a single 3D binary array (uint8, containing 0-1 values)
+
+                :param VOIdata:    the VOI data
+                :return: nothing
+                """
+
+        self.nt = 1
+
+        self.VOI = vtkTools.makeVOIs(VOIdata)
+        self.slice = self.VOI.slice
+
+        # No deltaF/F data with VOIs
+        self.displaydFAction.setEnabled(False)
+
+        self.displayProps(self.VOI.volume, self.VOI.sliceActor)
+        self.initView(self.VOI.dimensions,1)
         self.stackBeingDisplayed = False
         self.VOIBeingDisplayed = True
 
     def removeAllProps(self):
         for v in self.displayedVolumes:
             self.renderer.RemoveVolume(v)
+        self.displayedVolumes = []
+
         for a in self.displayedActors:
             self.sliceRenderer.RemoveActor(a)
+        self.displayedActors = []
 
     def displayProps(self, volumes, actors):
         self.removeAllProps()
@@ -924,7 +944,25 @@ class vtkView(QtGui.QFrame):
         for a in self.displayedActors:
             self.sliceRenderer.AddActor(a)
 
-    def initView(self, lx, ly ,lz, t):
+    def initView(self, lx, ly ,lz=0, t=0):
+        """
+        vtkView.initView(lx, ly, lz, t)
+        vtkView.initView(dim, t)
+
+        Initializes the view for the specified dimensions (lx, ly, lz) of the data, and sets the initial time frame to t
+        The function must be called with either 2 (dim = [lx, ly, lz] and t) or 4 (lx, ly, lz, and t) arguments
+
+        :param lx: x-dimension of the data
+        :param ly: y-dimension of the data
+        :param lz: z-dimension of the data
+        :param t:  initial time frame
+        :return:
+        """
+
+        if isinstance(lx,list):
+            t = ly
+            lx,ly,lz = lx
+
         # Displays the plane in the 3D view at the center of the sample
         self.initPlane(lx, ly, lz)
 
@@ -947,176 +985,32 @@ class vtkView(QtGui.QFrame):
         self.resetAll()
         self.renderAll(deletePanel=True)
 
-    def overlayVOIHRS(self, data1, data2, transforms1=(), transforms2=(), colormap=None):
+    def overlayVOIsOnStack(self, stackData, VOIdata, stackTransforms=(), colormap=None):
         """
-                function vtkView.overlayVOIs(self, data)
+                function vtkView.overlayVOIsOnStack(self, stackData, VOIdata, stackTransforms=(), colormap=None):
 
-                Overlays any number of VOI images in the VTK view
-                data is a list of 3D binary arrays (uint8, containing 0-1 values) where each member is a set of VOIs
+                Overlays any number of VOI images on top of a stack image in the VTK view
 
-                :param data:    the VOI data
+                :param stackData:       the stack data (3D array, alone or in a list)
+                :param VOIdata:         the VOI data (list of 3D arrays), resampled to the stack dimensions if necessary
+                :param stackTransforms: a list of transforms for the stack image, in case it has undergone registration
                 :return: nothing
                 """
 
-        firstTime = (self.nt == 0)  # If this is the first time data is assigned, we will need to create some objects
-        print(firstTime)
         self.nt = 1
-        self.data = [data1, data2]
-        self.currentdata = self.data
 
-        lz, ly, lx = self.data[0][0].shape  # The shape of the data (VTK is inverted wrt numpy)
-        print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
+        self.VOI = vtkTools.mergeVOIs(VOIdata)
+        self.stack = vtkTools.makeStack(stackData, stackTransforms)
 
-        self.numberOfDataSets = len(self.data)
-        print("number of datasets: {:d}".format(self.numberOfDataSets))
+        self.slice = self.stack.slice + self.VOI.slice
 
-        print("creating importers, imageMapToColors and slices...")
-        self.importer = [vtk.vtkImageImport() for i in range(self.numberOfDataSets)]
-        images = [vtk.vtkImageMapToColors() for i in range(self.numberOfDataSets)]
-        self.slice = [vtk.vtkImageResliceToColors() for i in range(self.numberOfDataSets)]
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer[i].SetDataExtentToWholeExtent()
-            self.importer[i].SetDataScalarTypeToUnsignedChar()
-            self.importer[i].SetImportVoidPointer(self.data[i][0])
-            self.importer[i].Modified()
-        print("done.")
-
+        # No deltaF/F data with VOIs or HRS
         self.displaydFAction.setEnabled(False)
 
-        # Creates the colormap
-        table = [vtk.vtkLookupTable() for i in range(self.numberOfDataSets)]
-        if colormap == None:
-            colormap = 'Standard'
-
-        # Lookup Table for the HRS
-
-        cm = self.colorMaps[colormap]
-        if isinstance(cm,list):
-            cm = cm[0]
-        om = self.opacityMaps[colormap]
-        if isinstance(om, list):
-            om = om[0]
-
-        table[0].SetValueRange(0,255)
-        table[1].SetValueRange(0, 255)
-        table[0].SetRange(0, 255)
-        table[1].SetRange(0, 255)
-        table[0].SetAlphaRange(0, 255)
-        table[1].SetAlphaRange(0, 255)
-        table[0].SetNumberOfTableValues(256)
-        table[1].SetNumberOfTableValues(256)
-        table[0].Build()
-        table[1].Build()
-
-        table[0].SetTableValue(0, [0, 0, 0, 0])
-        for i in range(256):
-            c = cm.GetColor(i)
-            o = om.GetValue(i)
-            table[0].SetTableValue(i,(c[0], c[1], c[2], o))
-            table[1].SetTableValue(i, [1,0,0,1])
-        table[1].SetTableValue(0, [0, 0, 0, 0])
-
-        # In non-independent components mode, opacity is specified by the 4th channel
-        opacityMap = vtk.vtkPiecewiseFunction()
-        opacityMap.AddPoint(0,0)
-        opacityMap.AddPoint(255, 1)
-
-        self.volumeProperty.IndependentComponentsOff()
-        self.volumeProperty.SetScalarOpacity(0, opacityMap)
-
-        print("done")
-
-        sagittal = vtk.vtkMatrix4x4()
-        sagittal.DeepCopy((0, 1, 0, 0,
-                           0, 0, 1, 127.5,
-                           1, 0, 0, 0,
-                           0, 0, 0, 1))
-
-        for i in range(self.numberOfDataSets):
-            self.slice[i].SetOutputDimensionality(2)
-            self.slice[i].SetInterpolationModeToLinear()
-            self.slice[i].SetResliceAxes(sagittal)
-
-        print("Creating color images...")
-        for i in range(self.numberOfDataSets):
-            images[i].SetLookupTable(table[i])
-            images[i].SetInputConnection(self.importer[i].GetOutputPort())
-            # images[i].PassAlphaToOutputOn()
-
-        # Connects the importer to the volume mapper and to the slicer
-        self.blender.RemoveAllInputConnections(0)
-        self.sliceBlender.RemoveAllInputConnections(0)
-        self.blender.SetBlendModeToNormal()
-        self.sliceBlender.SetBlendModeToNormal()
-
-        print("adding connections to blenders....")
-        for i in range(self.numberOfDataSets):
-            print("component {:d}".format(i))
-            self.blender.AddInputConnection(images[i].GetOutputPort())
-            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
-            # For some reason,
-            if i==0:
-                self.slice[i].SetOutputFormatToRGB()
-            else:
-                self.slice[i].SetOutputFormatToRGBA()
-            self.slice[i].SetLookupTable(table[i])
-            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
-            self.blender.SetOpacity(i, 0.5)
-            self.sliceBlender.SetOpacity(i, 0.5)
-        print("done")
-
-        print("Number of connections: {:d}".format(self.blender.GetNumberOfInputs ()))
-
-        # Connects the objects to their mapper
-        print("Connecting to mappers...")
-        print("volume")
-        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
-        print("slice")
-        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
-        print("done")
-
-        # firstTime = True
-        if firstTime:
-            # If this is the first time we add data, we create
-            # a new volume object for the 3D rendering, and
-            # another one for the 2D slice
-            self.volume = vtk.vtkVolume()
-            self.volume.SetMapper(self.volumeMapper)
-            self.volume.SetProperty(self.volumeProperty)
-            self.renderer.AddVolume(self.volume)
-
-            self.sliceVolume = vtk.vtkImageActor() #vtk.vtkVolume()
-            self.sliceVolume.SetMapper(self.sliceMapper)
-            self.sliceRenderer.AddActor(self.sliceVolume)
-
-            # Displays the plane in the 3D view at the center of the sample
-            self.initPlane(lx, ly, lz)
-
-        print('Setting slice properties')
-        sProp = self.sliceVolume.GetProperty()
-        sProp.SetColorLevel(128)
-        sProp.SetColorWindow(255)
-        sProp.SetInterpolationTypeToCubic()
-
-        # Adjusts slider max value to match the data size
-        self.zslider.setValue(self.planez)
-        self.tslider.setMaximum(self.nt - 1)
-        if (self.curPlaneOrientation == 0):
-            self.zslider.setMaximum(ly - 1)  # for VTK, the vertical axis is y, although we call it z
-        elif (self.curPlaneOrientation == 1):
-            self.zslider.setMaximum(lz - 1)  # for VTK, the vertical axis is y, although we call it z
-        elif (self.curPlaneOrientation == 2):
-            self.zslider.setMaximum(lx - 1)  # for VTK, the vertical axis is y, although we call it z
-        else:
-            print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
-
-        # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions(lx,ly,lz)
-
-        # Updates the view
-        self.resetAll()
-        self.renderAll(deletePanel=True)
+        self.displayProps([self.stack.volume, self.VOI.volume], [self.stack.sliceActor, self.VOI.sliceActor])
+        self.initView(self.stack.dimensions, 1)
+        self.stackBeingDisplayed = True
+        self.VOIBeingDisplayed = True
 
     def resetAll(self):
         self.renderer.ResetCamera()

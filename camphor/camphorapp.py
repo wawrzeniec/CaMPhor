@@ -108,7 +108,7 @@ class camphor(QtGui.QMainWindow):
     def openFile2(self, dub=None, file=None, transforms=()):
         self.openFile(file=file, view=2, transforms=transforms)
 
-    def openFileFromProject(self, dub=None, brain=None, trial=None, view=1):
+    def openFileFromProject(self, brain=None, trial=None, view=1):
         """
         camphor.openFileFromProject
 
@@ -120,6 +120,8 @@ class camphor(QtGui.QMainWindow):
         if brain is None:
             return
 
+        print(brain)
+        print(trial)
         if trial==-1:
             # This points to the high-resolution scan
             dataFile = self.project.brain[brain].highResScan.dataFile
@@ -283,6 +285,30 @@ class camphor(QtGui.QMainWindow):
         transforms = self.project.brain[brain[0]].trial[trial[0]].transforms
         fun(data=data,transforms=transforms)
 
+    def displayVOIs(self, brain, trial, view=1):
+        if view==1:
+            fun = self.vtkView.displayVOIs
+        elif view==2:
+            fun = self.vtkView2.displayVOIs
+        else:
+            fun = self.vtkView.displayVOIs
+
+        f = self.project.brain[brain].trial[trial].VOIfilter()
+        f._parameters = self.project.brain[brain].trial[trial].VOIfilterParams
+
+        VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
+        VOIbase = self.project.brain[brain].trial[trial].VOIbase
+
+        fun(VOIdata=VOIdata)
+
+        VOIpanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view))
+        if view == 1:
+            self.vtkView.VOIpanel = VOIpanel
+        elif view == 2:
+            self.vtkView2.VOIpanel = VOIpanel
+        else:
+            self.vtkView.VOIpanel = VOIpanel
+
     def overlay(self, brain, trial, view=1):
         if view==1:
             fun = self.vtkView.overlay
@@ -404,26 +430,69 @@ class camphor(QtGui.QMainWindow):
         f._parameters = self.project.brain[brain].trial[trial].VOIfilterParams
 
         if view==1:
-            fun = self.vtkView.overlayVOIHRS
+            fun = self.vtkView.overlayVOIsOnStack
             VOIpanel = self.vtkView.VOIpanel
         elif view==2:
-            fun = self.vtkView2.overlayVOIHRS
+            fun = self.vtkView2.overlayVOIsOnStack
             VOIpanel = self.vtkView2.VOIpanel
         else:
-            fun = self.vtkView.overlayVOIHRS
+            fun = self.vtkView.overlayVOIsOnStack
             VOIpanel = self.vtkView.VOIpanel
 
         VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
         VOIbase = self.project.brain[brain].trial[trial].VOIbase
-        HRSdata = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
-        HRSdata = [HRSdata[0][::-1, :, :].copy(order='C')]
-        VOIdata = [self.resampleData(VOIdata, HRSdata[0], HRSdata[0].shape)]
-        VOIbase = self.resampleData(VOIbase, HRSdata[0], HRSdata[0].shape)
+        stackData = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
+        stackData = [stackData[0][::-1, :, :].copy(order='C')]
+        VOIdata = [self.resampleData(VOIdata, stackData[0], stackData[0].shape)]
+        VOIbase = self.resampleData(VOIbase, stackData[0], stackData[0].shape)
 
-        HRStransforms = self.project.brain[brain].highResScan.transforms
-        fun(data2=VOIdata, data1=HRSdata, transforms1=HRStransforms, colormap='Standard')
+        stackTransforms = self.project.brain[brain].highResScan.transforms
+        fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIpanel = f.controlWidget(self.vtkView, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        VOIpanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        if view==1:
+            self.vtkView.VOIpanel= VOIpanel
+        elif view==2:
+            self.vtkView2.VOIpanel = VOIpanel
+        else:
+            self.vtkView.VOIpanel = VOIpanel
+
+    def overlayVOIsOnStack(self, brain, trial, view):
+        """
+        camphorapp.overlayVOIsOnStack(brain, trial, view)
+        This function overlays the VOIs of a single target trial on top of the corresponding stack image
+        If the filter that has been used to extract the VOIs (the VOIfilter object of the target trialData object)
+        allows for a control widget, this also spawns the control widget and passes it to vtkView so that it
+        can be destroyed when new data is created
+
+        :param brain:       brain index of the target trial (as list)
+        :param trial:       trial index of the target trial (as list)
+        :param view:        index of the vtkView in which to display the data
+        :return:            nothing
+        """
+
+        f = self.project.brain[brain].trial[trial].VOIfilter()
+        f._parameters = self.project.brain[brain].trial[trial].VOIfilterParams
+
+        if view==1:
+            fun = self.vtkView.overlayVOIsOnStack
+            VOIpanel = self.vtkView.VOIpanel
+        elif view==2:
+            fun = self.vtkView2.overlayVOIsOnStack
+            VOIpanel = self.vtkView2.VOIpanel
+        else:
+            fun = self.vtkView.overlayVOIsOnStack
+            VOIpanel = self.vtkView.VOIpanel
+
+        VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
+        VOIbase = self.project.brain[brain].trial[trial].VOIbase
+        stackData = DataIO.LSMLoad(self.project.brain[brain].trial[trial].dataFile)
+        VOIdata = [VOIdata]
+
+        stackTransforms = self.project.brain[brain].trial[trial].transforms
+        fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
+
+        VOIpanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
         if view==1:
             self.vtkView.VOIpanel= VOIpanel
         elif view==2:

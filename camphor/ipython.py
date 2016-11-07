@@ -17,6 +17,7 @@ import vtk
 import camphor.DataIO as DataIO
 from matplotlib import cm
 import numpy
+from camphor.vtkView import vtkTools
 
 app = QtGui.QApplication(sys.argv)
 camphor = camphorapp.camphor()
