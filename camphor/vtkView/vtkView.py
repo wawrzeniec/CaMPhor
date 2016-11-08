@@ -7,6 +7,7 @@ import time
 from camphor import utils
 import numpy
 import copy
+from functools import partial
 from matplotlib import cm
 from camphor.vtkView import vtkTools
 
@@ -57,7 +58,7 @@ class vtkView(QtGui.QFrame):
         self.sliceOpacityMaps = {}
         self.sliceLookupTables = {}
 
-        self.VOIpanel = None
+        self.VOIPanel = None
 
         self.ini = ini
 
@@ -82,12 +83,12 @@ class vtkView(QtGui.QFrame):
 
         # Sliders to change the z- and t-positions
         self.zslider = QtGui.QSlider()
-        self.zslider.setStyleSheet("""QSlider {background-color: none; width: 15px;}
+        self.zslider.setStyleSheet("""QSlider {background-color: none; max-width: 18px;}
                                    QSlider::handle {background: #36F; margin:2px 0;
                                         border: 1px solid #24F; border-radius: 2px;}
                                    QSlider::handle:hover {background-color: #24F;}""")
         self.tslider = QtGui.QSlider(Qt.Horizontal)
-        self.tslider.setStyleSheet("""QSlider {background-color: none; height: 15px;}
+        self.tslider.setStyleSheet("""QSlider {background-color: none; max-height: 18px;}
                                     QSlider::handle {background-color: #36F; width:10px; height: 5px;
                                         border: 1px solid #24F; border-radius: 2px;}
                                    QSlider::handle:hover {background-color: #24F;}""")
@@ -154,14 +155,18 @@ class vtkView(QtGui.QFrame):
 
         # Layout for the VTK rendering windows to add a toolbar at the top
         self.renwinLayout = QtGui.QVBoxLayout()
+        self.renwinToolbarLayout = QtGui.QHBoxLayout()
         self.renwinToolbar = QtGui.QToolBar()
-        self.renwinLayout.addWidget(self.renwinToolbar)
+        self.renwinToolbarLayout.addWidget(self.renwinToolbar)
+        self.renwinLayout.addLayout(self.renwinToolbarLayout)
         self.renwinLayout.addWidget(self.interactor)
 
-        self.slicerenwinLayout = QtGui.QVBoxLayout()
-        self.slicerenwinToolbar = QtGui.QToolBar()
-        self.slicerenwinLayout.addWidget(self.slicerenwinToolbar)
-        self.slicerenwinLayout.addWidget(self.sliceInteractor)
+        self.sliceRenwinLayout = QtGui.QVBoxLayout()
+        self.sliceRenwinToolbarLayout = QtGui.QHBoxLayout()
+        self.sliceRenwinToolbar = QtGui.QToolBar()
+        self.sliceRenwinToolbarLayout.addWidget(self.sliceRenwinToolbar)
+        self.sliceRenwinLayout.addLayout(self.sliceRenwinToolbarLayout)
+        self.sliceRenwinLayout.addWidget(self.sliceInteractor)
 
         # Toolbar buttons/actions
         self.displayFAction = QtGui.QAction('Display Raw Fluorescence', self)
@@ -217,7 +222,7 @@ class vtkView(QtGui.QFrame):
         self.sliceXAction.setShortcut('Ctrl+X')
         self.sliceXAction.setStatusTip('Slice along X-axis')
         self.sliceXAction.triggered.connect(self.sliceX)
-        self.slicerenwinToolbar.addAction(self.sliceXAction)
+        self.sliceRenwinToolbar.addAction(self.sliceXAction)
 
         self.sliceYAction = QtGui.QAction('Slice along Y-axis', self)
         self.sliceYAction.setIcon(utils.createTextIcon(""))
@@ -226,7 +231,7 @@ class vtkView(QtGui.QFrame):
         self.sliceYAction.setShortcut('Ctrl+Y')
         self.sliceYAction.setStatusTip('Slice along Y-axis')
         self.sliceYAction.triggered.connect(self.sliceY)
-        self.slicerenwinToolbar.addAction(self.sliceYAction)
+        self.sliceRenwinToolbar.addAction(self.sliceYAction)
 
         self.sliceZAction = QtGui.QAction('Slice along Z-axis', self)
         self.sliceZAction.setIcon(utils.createTextIcon(""))
@@ -235,9 +240,9 @@ class vtkView(QtGui.QFrame):
         self.sliceZAction.setShortcut('Ctrl+Z')
         self.sliceZAction.setStatusTip('Slice along Z-axis')
         self.sliceZAction.triggered.connect(self.sliceZ)
-        self.slicerenwinToolbar.addAction(self.sliceZAction)
+        self.sliceRenwinToolbar.addAction(self.sliceZAction)
 
-        c = self.slicerenwinToolbar.children()
+        c = self.sliceRenwinToolbar.children()
         self.sliceXButton = c[3]
         self.sliceYButton = c[4]
         self.sliceZButton = c[5]
@@ -245,7 +250,7 @@ class vtkView(QtGui.QFrame):
         c[4].setObjectName('sliceY')
         c[5].setObjectName('sliceZ')
 
-        self.slicerenwinToolbar.setStyleSheet("""
+        self.sliceRenwinToolbar.setStyleSheet("""
                                                     QToolButton {width: 10px; height: 10px;
                                                     background-repeat: None;
                                                     background-position: center;
@@ -269,13 +274,61 @@ class vtkView(QtGui.QFrame):
 
                                                     """)
 
+        # Toolbar to control VOI opacity and display state
+        self.VOIToolbar = QtGui.QToolBar()
+
+        showVOIAction = QtGui.QAction('Show/hide VOIs', self)
+        showVOIAction.setIcon(utils.createTextIcon(""))
+        showVOIAction.setCheckable(True)
+        showVOIAction.setChecked(True)
+        showVOIAction.setShortcut('Ctrl+Shift+S')
+        showVOIAction.setStatusTip('Show/hide VOIs')
+
+        self.VOIToolbar.addAction(showVOIAction)
+
+        opacitySlider = QtGui.QSlider(Qt.Horizontal)
+        opacitySlider.setTickInterval(25)
+        opacitySlider.setPageStep(10)
+        opacitySlider.setMinimum(0)
+        opacitySlider.setMaximum(100)
+        opacitySlider.setValue(100)
+        opacitySlider.setTickPosition(QtGui.QSlider.TicksBelow)
+        opacitySlider.valueChanged.connect(partial(setVOIOpacity,VOI=None, renwin=None))
+        self.VOIToolbar.addWidget(opacitySlider)
+
+        c = self.VOIToolbar.children()
+        self.showVOIButton = c[3]
+        c[3].setObjectName('showVOIs')
+
+        self.VOIToolbar.setStyleSheet("""
+                                        QToolButton {width: 14px; height: 10px;
+                                        background-repeat: None;
+                                        background-position: center;
+                                        background-color: #6CF;
+                                        border: 1px solid #24F; border-radius: 2px;}
+
+                                        QToolButton#showVOIs {width: 14px; height: 11px;
+                                        image: url('res/icons/showVOIs-01.png');}
+
+                                        QToolButton::hover {background: #CCC;}
+                                        QToolButton::pressed {background: #ACF; border: 1px solid #ACF; border-radius: 2px;}
+                                        QToolButton#showVOIs::checked {image: url('res/icons/showVOIs_red-01.png');}
+                                        QToolButton::disabled {background: #CCC;}
+
+                                        QSlider {background-color: none; max-width: 100px; max-height:16px}
+                                        QSlider::handle {background: #36F; margin:10px 10px;
+                                            border: 1px solid #24F; border-radius: 2px;}
+                                        QSlider::handle:hover {background-color: #24F;}
+                                        """)
+        self.VOIToolbar.setVisible(False)
+        self.sliceRenwinToolbarLayout.addWidget(self.VOIToolbar, 0, Qt.AlignRight)
 
         # The main grid layout
         self.layout = QtGui.QGridLayout()
 
         self.layout.addLayout(self.renwinLayout,0,0)
         self.layout.addLayout(self.zsliderLayout,0,1)
-        self.layout.addLayout(self.slicerenwinLayout,0,2)
+        self.layout.addLayout(self.sliceRenwinLayout,0,2)
         self.layout.setContentsMargins(0,0,0,0)
         self.layout.addLayout(self.tsliderLayout,1,0,1,3)
         self.setLayout(self.layout)
@@ -300,15 +353,15 @@ class vtkView(QtGui.QFrame):
         self.renderer = vtk.vtkRenderer()
         self.sliceRenderer = vtk.vtkRenderer()
         self.renwin = self.interactor.GetRenderWindow()
-        self.slicerenwin = self.sliceInteractor.GetRenderWindow()
+        self.sliceRenwin = self.sliceInteractor.GetRenderWindow()
         self.renwin.AddRenderer(self.renderer)
-        self.slicerenwin.AddRenderer(self.sliceRenderer)
+        self.sliceRenwin.AddRenderer(self.sliceRenderer)
         self.interactor.SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
         self.sliceInteractor.SetInteractorStyle(vtk.vtkInteractorStyleImage())
         self.interactor.AddObserver(vtk.vtkCommand.KeyPressEvent, self.runMovie)
         self.sliceInteractor.AddObserver(vtk.vtkCommand.KeyPressEvent, self.plotdF)
         self.renwin.SetInteractor(self.interactor)
-        self.slicerenwin.SetInteractor(self.sliceInteractor)
+        self.sliceRenwin.SetInteractor(self.sliceInteractor)
         self.renderer.SetBackground(0.0,0.0,0.0)
         self.sliceRenderer.SetBackground(0.0, 0.0, 0.0)
         self.volumeMapper = vtk.vtkSmartVolumeMapper()
@@ -427,6 +480,7 @@ class vtkView(QtGui.QFrame):
         else:
             self.displaydFAction.setEnabled(False)
 
+        self.removeAllProps()
         self.displayProps(self.stack.volume, self.stack.sliceActor)
         self.stackBeingDisplayed = True
         self.VOIBeingDisplayed = False
@@ -478,7 +532,7 @@ class vtkView(QtGui.QFrame):
         nSlices = len(self.slice)
 
         if self.curPlaneOrientation == 0:
-            # Updates the slicer
+            # Updates the sliceR
             sagittal = vtk.vtkMatrix4x4()
             sagittal.DeepCopy((0, 1, 0, 0,
                                0, 0, 1, z,
@@ -496,7 +550,7 @@ class vtkView(QtGui.QFrame):
             self.zlabel.setText("z:{:d}".format(z))
 
         elif self.curPlaneOrientation == 1:
-            # Updates the slicer
+            # Updates the sliceR
             sagittal = vtk.vtkMatrix4x4()
             sagittal.DeepCopy((0, 1, 0, 0,
                                1, 0, 0, 0,
@@ -514,7 +568,7 @@ class vtkView(QtGui.QFrame):
             self.zlabel.setText("y:{:d}".format(z))
 
         elif self.curPlaneOrientation == 2:
-            # Updates the slicer
+            # Updates the sliceR
             sagittal = vtk.vtkMatrix4x4()
             sagittal.DeepCopy((0, 0, 1, z,
                                0, 1, 0, 0,
@@ -556,7 +610,7 @@ class vtkView(QtGui.QFrame):
         nSlices = len(self.slice)
 
         if orientation == 0:
-            # Updates the slicer
+            # Updates the sliceR
             if coordinate is None:
                 z = numpy.uint8(ly / 2)
             else:
@@ -587,7 +641,7 @@ class vtkView(QtGui.QFrame):
             self.zslider.setValue(z)
 
         elif orientation == 1:
-            # Updates the slicer
+            # Updates the sliceR
             if coordinate is None:
                 z = numpy.uint8(lz / 2)
             else:
@@ -618,7 +672,7 @@ class vtkView(QtGui.QFrame):
             self.zslider.setValue(z)
 
         elif orientation == 2:
-            # Updates the slicer
+            # Updates the sliceR
             if coordinate is None:
                 z = numpy.uint8(lx / 2)
             else:
@@ -704,7 +758,7 @@ class vtkView(QtGui.QFrame):
 
         # updates the display
         self.renwin.Render()
-        self.slicerenwin.Render()
+        self.sliceRenwin.Render()
 
     def sliceX(self):
         self.sliceXAction.setChecked(True)
@@ -727,19 +781,40 @@ class vtkView(QtGui.QFrame):
     def playMovieUpdateGUI(self, i):
         pass
         # self.renwin.Render()
-        # self.slicerenwin.Render()
+        # self.sliceRenwin.Render()
         # self.tslider.repaint()
         # self.zslider.repaint()
 
     def showDiff(self, data1, data2, transforms1=(), transforms2=()):
-        self.calculateDiff(data1=data1,data2=data2,transforms1=transforms1,transforms2=transforms2)
-        self.colormap = 'Diff'
-        self.assignData(self.tdata[0], colormap='Diff')
+
+        s1 = vtkTools.makeStack(data1, transforms1)
+        s2 = vtkTools.makeStack(data2, transforms2)
+        self.stack = vtkTools.diffStacks(s1, s2, colormap='diff')
+        self.slice = self.stack.slice
+
+        self.displaydFAction.setEnabled(True)
+
+        self.removeAllProps()
+        self.displayProps(self.stack.volume, self.stack.sliceActor)
+        self.initView(self.stack.dimensions, self.stack.numberOfTimeFrames)
+
+        self.stackBeingDisplayed = True
+        self.VOIBeingDisplayed = False
 
     def showtDiff(self, data, transforms=()):
-        self.calculatetDiff(data=data,transforms=transforms)
-        self.colormap = 'Diff'
-        self.assignData(self.tdata[0], colormap='Diff')
+        data = self.calculatetDiff(data=data, transforms=transforms)
+
+        self.stack = vtkTools.tdiffStack(vtkTools.makeStack(data, transforms), colormap='diff')
+        self.slice = self.stack.slice
+
+        self.displaydFAction.setEnabled(True)
+
+        self.removeAllProps()
+        self.displayProps(self.stack.volume, self.stack.sliceActor)
+        self.initView(self.stack.dimensions, self.stack.numberOfTimeFrames)
+
+        self.stackBeingDisplayed = True
+        self.VOIBeingDisplayed = False
 
     def overlay(self, data1, data2, transforms1=(), transforms2=(), colormap=None, dataType=numpy.uint8):
         """
@@ -755,116 +830,19 @@ class vtkView(QtGui.QFrame):
                 :return: nothing
                 """
 
-        firstTime = (self.nt == 0)  # If this is the first time data is assigned, we will need to create some objects
+        s1 = vtkTools.makeStack(data1,transforms1)
+        s2 = vtkTools.makeStack(data2, transforms2)
+        self.stack = vtkTools.mergeStacks([s1,s2])
+        self.slice = self.stack.slice
 
-        self.nt = len(data1)  # The number of time slices in the data
-        lz, ly, lx = data1[0].shape  # The shape of the data (VTK is inverted wrt numpy)
-        print("Data dimensions: {:d} x {:d} x {:d}, {:d} time slices".format(lx, ly, lz, self.nt))
-        if colormap is None:
-            colormap = 'Overlay'
+        self.displaydFAction.setEnabled(True)
 
+        self.removeAllProps()
+        self.displayProps(self.stack.volume, self.stack.sliceActor)
+        self.initView(self.stack.dimensions, self.stack.numberOfTimeFrames)
 
-        self.numberOfDataSets = 2
-        self.data = [copy.deepcopy(data1), copy.deepcopy(data2)]
-        self.tdata = [data1, data2]
-        for t in transforms1:
-            if t.active:
-                self.tdata[0] = t.apply(self.tdata[0])
-
-        for t in transforms2:
-            if t.active:
-                self.tdata[0] = t.apply(self.tdata[1])
-
-        # Sets the importer to import the first frame of the supplied data
-
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
-            self.importer[i].SetDataExtentToWholeExtent()
-            if dataType == numpy.uint8:
-                self.importer[i].SetDataScalarTypeToUnsignedChar()
-            elif dataType == numpy.uint16:
-                self.importer[i].SetDataScalarTypeToUnsignedShort()
-            elif dataType == numpy.int:
-                self.importer[i].SetDataScalarTypeToInt()
-            elif dataType == numpy.float:
-                self.importer[i].SetDataScalarTypeToFloat()
-            elif dataType == numpy.float:
-                self.importer[i].SetDataScalarTypeToDouble()
-
-        self.currentdata = self.tdata
-
-        # Imports the data
-        for i in range(self.numberOfDataSets):
-            self.importer[i].SetImportVoidPointer(self.tdata[i][0])
-            self.importer[i].Modified()
-
-
-        if self.nt > 1:
-            self.displaydFAction.setEnabled(True)
-            self.calculatedF()
-        else:
-            self.displaydFAction.setEnabled(False)
-
-        # Adjusts the colormap
-        self.setColorMap(colormap)
-        self.colormap = colormap  # To remember what was the colormap when we first displayed this object
-
-        # Connects the importer to the volume mapper and to the slicer
-        self.blender.RemoveAllInputConnections(0)
-        self.sliceBlender.RemoveAllInputConnections(0)
-        self.volumeMapper.SetInputConnection(self.blender.GetOutputPort())
-        for i in range(self.numberOfDataSets):
-            self.blender.AddInputConnection(self.importer[i].GetOutputPort())
-            self.slice[i].SetInputConnection(self.importer[i].GetOutputPort())
-            self.sliceBlender.AddInputConnection(self.slice[i].GetOutputPort())
-
-        self.sliceBlender.SetBlendModeToNormal()
-        # self.sliceBlender.SetOpacity(0, .5)
-        self.sliceBlender.SetOpacity(1, 0.5)
-
-        # Connects the slicer to its mapper
-        self.sliceMapper.SetInputConnection(self.sliceBlender.GetOutputPort())
-
-        if firstTime:
-            # If this is the first time we add data, we create
-            # a new volume object for the 3D rendering, and
-            # another one for the 2D slice
-            self.volume = vtk.vtkVolume()
-            self.volume.SetMapper(self.volumeMapper)
-            self.volume.SetProperty(self.volumeProperty)
-            self.renderer.AddVolume(self.volume)
-
-            self.sliceVolume = vtk.vtkImageActor() #vtk.vtkVolume()
-            self.sliceVolume.SetMapper(self.sliceMapper)
-            # self.sliceVolume.SetProperty(self.sliceVolumeProperty)
-            # self.sliceRenderer.AddVolume(self.sliceVolume)
-            self.sliceRenderer.AddActor(self.sliceVolume)
-
-            # Displays the plane in the 3D view at the center of the sample
-            self.initPlane(lx, ly, lz)
-
-        # Adjusts slider max value to match the data size
-        self.zslider.setValue(self.planez)
-        self.tslider.setMaximum(self.nt - 1)
-        if (self.curPlaneOrientation == 0):
-            self.zslider.setMaximum(ly - 1)  # for VTK, the vertical axis is y, although we call it z
-        elif (self.curPlaneOrientation == 1):
-            self.zslider.setMaximum(lz - 1)  # for VTK, the vertical axis is y, although we call it z
-        elif (self.curPlaneOrientation == 2):
-            self.zslider.setMaximum(lx - 1)  # for VTK, the vertical axis is y, although we call it z
-        else:
-            print('Error: bad value for vtkView.curPlaneOrientation ({:d})'.format(self.curPlaneOrientation))
-
-        # Adjusts the position and orientation of the slicing plane
-        self.setCubeDimensions(lx,ly,lz)
-        self.setTimeSlice()
-
-        # Updates the view
-        self.resetAll()
-        self.renderAll(deletePanel=True)
-
-        self.colormap = colormap
-
+        self.stackBeingDisplayed = True
+        self.VOIBeingDisplayed = False
 
     def overlayVOIs(self, data):
         """
@@ -877,7 +855,6 @@ class vtkView(QtGui.QFrame):
                 :return: nothing
                 """
 
-        self.nt = 1
         self.data = [[d] for d in data] # often used to check the shape of the data
         self.currentdata = self.data
 
@@ -887,10 +864,12 @@ class vtkView(QtGui.QFrame):
         # No deltaF/F data with VOIs
         self.displaydFAction.setEnabled(False)
 
+        self.removeAllProps()
         self.displayProps(self.VOI.volume, self.VOI.sliceActor)
         self.initView(self.VOI.dimensions,1)
         self.stackBeingDisplayed = False
         self.VOIBeingDisplayed = True
+        self.updateVOIToolbar()
 
     def displayVOIs(self, VOIdata):
         """
@@ -903,20 +882,21 @@ class vtkView(QtGui.QFrame):
                 :return: nothing
                 """
 
-        self.nt = 1
-
         self.VOI = vtkTools.makeVOIs(VOIdata)
         self.slice = self.VOI.slice
 
         # No deltaF/F data with VOIs
         self.displaydFAction.setEnabled(False)
 
+        self.removeAllProps()
         self.displayProps(self.VOI.volume, self.VOI.sliceActor)
         self.initView(self.VOI.dimensions,1)
         self.stackBeingDisplayed = False
         self.VOIBeingDisplayed = True
+        self.updateVOIToolbar()
 
     def removeAllProps(self):
+        print("Removing props")
         for v in self.displayedVolumes:
             self.renderer.RemoveVolume(v)
         self.displayedVolumes = []
@@ -924,6 +904,20 @@ class vtkView(QtGui.QFrame):
         for a in self.displayedActors:
             self.sliceRenderer.RemoveActor(a)
         self.displayedActors = []
+
+        print("Cleaning unused objects")
+        # Kills the VOI control panels and toolbar
+        if self.VOIPanel is not None:
+            print('Deleting panel(s)')
+            if isinstance(self.VOIPanel, list):
+                for p in self.VOIPanel:
+                    p.close()
+            else:
+                self.VOIPanel.close()
+            self.VOIPanel = None
+
+        if self.VOIToolbar is not None:
+            self.VOIToolbar.setVisible(False)
 
     def displayProps(self, volumes, actors):
         self.removeAllProps()
@@ -944,12 +938,21 @@ class vtkView(QtGui.QFrame):
         for a in self.displayedActors:
             self.sliceRenderer.AddActor(a)
 
+    def updateVOIToolbar(self):
+        a = self.VOIToolbar.actions()
+        a[0].triggered.disconnect()
+        a[0].triggered.connect(lambda x: toggleShowVOIs(VOI=self.VOI,renwin=[self.renwin, self.sliceRenwin]))
+        b = self.VOIToolbar.children()
+        b[-1].valueChanged.disconnect()
+        b[-1].valueChanged.connect(partial(setVOIOpacity,VOI=self.VOI, renwin=[self.renwin, self.sliceRenwin]))
+        self.VOIToolbar.setVisible(True)
+
     def initView(self, lx, ly ,lz=0, t=0):
         """
         vtkView.initView(lx, ly, lz, t)
         vtkView.initView(dim, t)
 
-        Initializes the view for the specified dimensions (lx, ly, lz) of the data, and sets the initial time frame to t
+        Initializes the view for the specified dimensions (lx, ly, lz) of the data, and sets the total number of time frames to t
         The function must be called with either 2 (dim = [lx, ly, lz] and t) or 4 (lx, ly, lz, and t) arguments
 
         :param lx: x-dimension of the data
@@ -969,6 +972,7 @@ class vtkView(QtGui.QFrame):
         # Adjusts slider max value to match the data size
         self.zslider.setValue(self.planez)
         self.tslider.setMaximum(t - 1)
+        self.nt = t
         if (self.curPlaneOrientation == 0):
             self.zslider.setMaximum(ly - 1)  # for VTK, the vertical axis is y, although we call it z
         elif (self.curPlaneOrientation == 1):
@@ -983,7 +987,7 @@ class vtkView(QtGui.QFrame):
 
         # Updates the view
         self.resetAll()
-        self.renderAll(deletePanel=True)
+        self.renderAll()
 
     def overlayVOIsOnStack(self, stackData, VOIdata, stackTransforms=(), colormap=None):
         """
@@ -997,8 +1001,6 @@ class vtkView(QtGui.QFrame):
                 :return: nothing
                 """
 
-        self.nt = 1
-
         self.VOI = vtkTools.mergeVOIs(VOIdata)
         self.stack = vtkTools.makeStack(stackData, stackTransforms)
 
@@ -1007,27 +1009,20 @@ class vtkView(QtGui.QFrame):
         # No deltaF/F data with VOIs or HRS
         self.displaydFAction.setEnabled(False)
 
+        self.removeAllProps()
         self.displayProps([self.stack.volume, self.VOI.volume], [self.stack.sliceActor, self.VOI.sliceActor])
         self.initView(self.stack.dimensions, 1)
         self.stackBeingDisplayed = True
         self.VOIBeingDisplayed = True
+        self.updateVOIToolbar()
 
     def resetAll(self):
         self.renderer.ResetCamera()
         self.sliceRenderer.ResetCamera()
 
-    def renderAll(self, deletePanel=False):
+    def renderAll(self):
         self.renwin.Render()
-        self.slicerenwin.Render()
-        if deletePanel:
-            if self.VOIpanel is not None:
-                print('Deleting panel(s)')
-                if isinstance(self.VOIpanel, list):
-                    for p in self.VOIpanel:
-                        p.close()
-                else:
-                    self.VOIpanel.close()
-                self.VOIpanel = None
+        self.sliceRenwin.Render()
 
     def plotdF(self, interactor, event):
         """
@@ -1125,28 +1120,22 @@ class vtkView(QtGui.QFrame):
     def calculateDiff(self, data1, data2, transforms1=(), transforms2=()):
         # Calculates the difference in fluorescence between two sets of data
         # This requires the two data sets to have, of course, the same dimensions
-
-        self.data = [[numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]]
         for t in transforms1:
             if t.active:
                 data1 = t.apply(data1)
         for t in transforms2:
             if t.active:
                 data2 = t.apply(data2)
-        self.tdata = [[numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]]
+        return [numpy.uint8((data1[i].astype(numpy.double) - data2[i].astype(numpy.double))/2 + 128) for i in range(len(data1))]
 
     def calculatetDiff(self, data, transforms=()):
         # Calculates the difference in fluorescence between neighboring time frames
-
-        self.data = [[numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double)) / 2 + 128)
-                     for i in range(len(data)-1)]]
-
         for t in transforms:
             if t.active:
                 data = t.apply(data)
 
-        self.tdata = [[numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double))/2 + 128)
-                      for i in range(len(data)-1)]]
+        return [numpy.uint8((data[i+1].astype(numpy.double) - data[i].astype(numpy.double))/2 + 128)
+                      for i in range(len(data)-1)]
 
     def setColorMap(self, colormap=None):
         if colormap is None:
@@ -1404,3 +1393,23 @@ class playMovieThread(QtCore.QThread):
             repeat = self.repeatButton.isChecked()
 
 ####### END OF CLASS playMovieThread
+
+
+def toggleShowVOIs(VOI=None, renwin=None):
+    if VOI is not None:
+        print("toggling visibility to {:d}", 1 - VOI.volume.GetVisibility())
+        VOI.volume.SetVisibility(1 - VOI.volume.GetVisibility())
+        VOI.sliceActor.SetVisibility(1 - VOI.sliceActor.GetVisibility())
+
+        if renwin is not None:
+            for r in renwin:
+                r.Render()
+
+def setVOIOpacity(value, VOI=None, renwin=None):
+    if VOI is not None:
+        VOI.volumeProperty.GetScalarOpacity(0).AddPoint(1,value/200)
+        VOI.sliceActor.SetOpacity(value/100)
+
+        if renwin is not None:
+            for r in renwin:
+                r.Render()

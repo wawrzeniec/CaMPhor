@@ -161,8 +161,8 @@ class camphorVOIExtractionMethod(ABC):
         for i in camphor.vtkView2.VOI.importer:
             i.Modified()
 
-        camphor.vtkView.renderAll(deletePanel=False)
-        camphor.vtkView2.renderAll(deletePanel=False)
+        camphor.vtkView.renderAll()
+        camphor.vtkView2.renderAll()
 
 class sliderLabel(QtGui.QWidget):
     def __init__(self, paramName, paramValue, minValue, maxValue, step, dataType, target):

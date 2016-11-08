@@ -301,13 +301,13 @@ class camphor(QtGui.QMainWindow):
 
         fun(VOIdata=VOIdata)
 
-        VOIpanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view))
         if view == 1:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
         elif view == 2:
-            self.vtkView2.VOIpanel = VOIpanel
+            self.vtkView2.VOIPanel = VOIPanel
         else:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
 
     def overlay(self, brain, trial, view=1):
         if view==1:
@@ -335,8 +335,8 @@ class camphor(QtGui.QMainWindow):
         trial = trial[0]
         data1 = DataIO.LSMLoad(self.project.brain[brain].trial[trial].dataFile)
         data2 = DataIO.LSMLoad(self.project.brain[brain].highResScan.dataFile)
-        data2 = [data2[0][::-1,:,:].copy(order='C') for i in range(len(data1))]
-        data1 = [self.resampleData(data1[i], data2[i], data2[i].shape) for i in range(len(data1))]
+        data2 = [data2[0][::-1,:,:].copy(order='C')]
+        data1 = [self.resampleData(data1[i], data2[0], data2[0].shape) for i in range(len(data1))]
 
         transforms1 = self.project.brain[brain].trial[trial].transforms
         transforms2 = self.project.brain[brain].highResScan.transforms
@@ -431,13 +431,13 @@ class camphor(QtGui.QMainWindow):
 
         if view==1:
             fun = self.vtkView.overlayVOIsOnStack
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
         elif view==2:
             fun = self.vtkView2.overlayVOIsOnStack
-            VOIpanel = self.vtkView2.VOIpanel
+            VOIPanel = self.vtkView2.VOIPanel
         else:
             fun = self.vtkView.overlayVOIsOnStack
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
 
         VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
         VOIbase = self.project.brain[brain].trial[trial].VOIbase
@@ -449,13 +449,13 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].highResScan.transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIpanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
         if view==1:
-            self.vtkView.VOIpanel= VOIpanel
+            self.vtkView.VOIPanel= VOIPanel
         elif view==2:
-            self.vtkView2.VOIpanel = VOIpanel
+            self.vtkView2.VOIPanel = VOIPanel
         else:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
 
     def overlayVOIsOnStack(self, brain, trial, view):
         """
@@ -476,13 +476,13 @@ class camphor(QtGui.QMainWindow):
 
         if view==1:
             fun = self.vtkView.overlayVOIsOnStack
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
         elif view==2:
             fun = self.vtkView2.overlayVOIsOnStack
-            VOIpanel = self.vtkView2.VOIpanel
+            VOIPanel = self.vtkView2.VOIPanel
         else:
             fun = self.vtkView.overlayVOIsOnStack
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
 
         VOIdata = self.project.brain[brain].trial[trial].VOIdata.astype(numpy.uint8)
         VOIbase = self.project.brain[brain].trial[trial].VOIbase
@@ -492,13 +492,13 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].trial[trial].transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIpanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
         if view==1:
-            self.vtkView.VOIpanel= VOIpanel
+            self.vtkView.VOIPanel= VOIPanel
         elif view==2:
-            self.vtkView2.VOIpanel = VOIpanel
+            self.vtkView2.VOIPanel = VOIPanel
         else:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
 
     def overlayVOIs(self, brain, trial, view):
         """
@@ -520,13 +520,13 @@ class camphor(QtGui.QMainWindow):
 
         if view == 1:
             fun = self.vtkView.overlayVOIs
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
         elif view == 2:
             fun = self.vtkView2.overlayVOIs
-            VOIpanel = self.vtkView2.VOIpanel
+            VOIPanel = self.vtkView2.VOIPanel
         else:
             fun = self.vtkView.overlayVOIs
-            VOIpanel = self.vtkView.VOIpanel
+            VOIPanel = self.vtkView.VOIPanel
 
 
         VOIdata = [self.project.brain[i].trial[j].VOIdata for i,j, in zip(brain,trial)]
@@ -535,14 +535,14 @@ class camphor(QtGui.QMainWindow):
         # fun(data1=[VOIdata[0]], data2=[VOIdata[1]], colormap='Overlay')
         fun(data=VOIdata)
 
-        VOIpanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
+        VOIPanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
                                     message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i])) for i in range(len(VOIdata))]
         if view == 1:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
         elif view == 2:
-            self.vtkView2.VOIpanel = VOIpanel
+            self.vtkView2.VOIPanel = VOIPanel
         else:
-            self.vtkView.VOIpanel = VOIpanel
+            self.vtkView.VOIPanel = VOIPanel
 
 ##################################
 #########       main () ##########

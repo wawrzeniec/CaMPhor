@@ -10,10 +10,10 @@ It first calculates the average of all pre-stimulus time frames for all trials,
 averages over all trials, up-samples the result and then registers the high-resolution
 scan to this data.
 """
-class registerToHighResolutionScan(camphorRegistrationMethod):
+class registerToHighResolutionScanZSlices(camphorRegistrationMethod):
     def __init__(self):
-        super(registerToHighResolutionScan, self).__init__()
-        self._parameters = registerToHighResolutionScanParameters()
+        super(registerToHighResolutionScanZSlices, self).__init__()
+        self._parameters = registerToHighResolutionScanZSlicesParameters()
         self.nDone = 0
         self.nTotal = 1
 
@@ -64,7 +64,7 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
                 self.message('Registering brain {:d}/{:d}, trial {:d}/{:d}'.format(b + 1, nBrains, i + 1, nTrials),
                              progress=100 * self.nDone / self.nTotal)
                 # 3. Register each timeframe to the baseline
-                transformlist.append(self.registerImage(template, data, camphor.project.brain[b].trial[i]))
+                transformlist.append(self.registerImage(template[0], data, camphor.project.brain[b].trial[i]))
 
                 self.nDone += 1
 
@@ -93,10 +93,15 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
         self.nFrames = nFrames
 
         # Creates the transform object
-        transformobject = registerToHighResolutionScanTransform(nFrames=nFrames)
+        transformobject = registerToHighResolutionScanZSlicesTransform(nFrames=nFrames)
 
-        # First we need to downsample the template to match the dimensions of the data
-        fixed_image = sitk.GetImageFromArray(template[0].astype(numpy.double))
+        nSlices = data[0].shape
+        totalnSlices = nSlices[1]
+
+        slicesDone = 0
+
+        # Resamples
+        fixed_image = sitk.GetImageFromArray(template.astype(numpy.double))
         moving_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
         print("template size:", fixed_image.GetSize())
         print("data size:", moving_image.GetSize())
@@ -106,6 +111,7 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
         lxm, lym, lzm = moving_image.GetSize()
         moving_image.SetSpacing((lxf / lxm, lyf / lym, lzf / lzm))
 
+        # First we need to resample the data to match the dimensions of the template
         resampled_template = sitk.Image(moving_image.GetSize(), moving_image.GetPixelIDValue())
         resampled_template.SetSpacing((lxf / lxm, lyf / lym, lzf / lzm))
         resampled_template.SetOrigin(moving_image.GetOrigin())
@@ -119,64 +125,78 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
         resampled_template = resample.Execute(fixed_image)
         print("resampled image size:", resampled_template.GetSize())
 
-        fixed_image = resampled_template
+        template = sitk.GetArrayFromImage(resampled_template)
 
         for i, d in enumerate(data):
-            self.curFrame = i
+            sliceTransform = []
 
-            moving_image = sitk.GetImageFromArray(d.astype(numpy.double))
+            curAxis = 1
+            for curSlice in range(nSlices[curAxis]):
+                fixed_image = sitk.GetImageFromArray(template[:, curSlice, :].astype(numpy.double))
+                moving_image = sitk.GetImageFromArray(d[:, curSlice, :].astype(numpy.double))
 
-            initial_transform = sitk.CenteredTransformInitializer(fixed_image,
-                                                                  moving_image,
-                                                                  sitk.Euler3DTransform(),
-                                                                  sitk.CenteredTransformInitializerFilter.GEOMETRY)
+                initial_transform = sitk.CenteredTransformInitializer(fixed_image,
+                                                                      moving_image,
+                                                                      sitk.Euler2DTransform(),
+                                                                      sitk.CenteredTransformInitializerFilter.GEOMETRY)
 
-            self.registration_method = sitk.ImageRegistrationMethod()
+                self.registration_method = sitk.ImageRegistrationMethod()
 
-            # similarity metric settings
-            # registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
-            self.registration_method.SetMetricAsCorrelation()
-            # registration_method.SetMetricAsANTSNeighborhoodCorrelation(5)
-            # registration_method.SetMetricAsJointHistogramMutualInformation(numberOfHistogramBins=20,varianceForJointPDFSmoothing=1.5)
-            # registration_method.SetMetricAsMeanSquares() # mean squares does not seem to work well at all
+                # similarity metric settings
+                # registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
+                self.registration_method.SetMetricAsCorrelation()
+                # registration_method.SetMetricAsANTSNeighborhoodCorrelation(5)
+                # registration_method.SetMetricAsJointHistogramMutualInformation(numberOfHistogramBins=20,varianceForJointPDFSmoothing=1.5)
+                # registration_method.SetMetricAsMeanSquares() # mean squares does not seem to work well at all
 
-            self.registration_method.SetMetricSamplingStrategy(self.registration_method.RANDOM)
-            self.registration_method.SetMetricSamplingPercentage(1)
+                self.registration_method.SetMetricSamplingStrategy(self.registration_method.RANDOM)
+                self.registration_method.SetMetricSamplingPercentage(1)
 
-            self.registration_method.SetInterpolator(sitk.sitkLinear)
+                self.registration_method.SetInterpolator(sitk.sitkLinear)
 
-            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.learningRate,
-                                                              numberOfIterations=self.parameters.numberOfIterations,
-                                                              convergenceMinimumValue=self.parameters.convergenceMinimumValue,
-                                                              convergenceWindowSize=self.parameters.convergenceWindowSize,
-                                                              estimateLearningRate=self.parameters.estimateLearningRate,
-                                                              maximumStepSizeInPhysicalUnits=self.parameters.maximumStepSizeInPhysicalUnits)
+                self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.learningRate,
+                                                                       numberOfIterations=self.parameters.numberOfIterations,
+                                                                       convergenceMinimumValue=self.parameters.convergenceMinimumValue,
+                                                                       convergenceWindowSize=self.parameters.convergenceWindowSize,
+                                                                       estimateLearningRate=self.parameters.estimateLearningRate,
+                                                                       maximumStepSizeInPhysicalUnits=self.parameters.maximumStepSizeInPhysicalUnits)
 
-            # registration_method.SetOptimizerScalesFromIndexShift()
-            self.registration_method.SetOptimizerScalesFromJacobian()
+                # registration_method.SetOptimizerScalesFromIndexShift()
+                self.registration_method.SetOptimizerScalesFromJacobian()
 
-            # setup for the multi-resolution framework
-            self.registration_method.SetShrinkFactorsPerLevel(shrinkFactors=[1])
-            self.registration_method.SetSmoothingSigmasPerLevel(smoothingSigmas=[1])
-            # self.registration_method.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
+                # setup for the multi-resolution framework
+                self.registration_method.SetShrinkFactorsPerLevel(shrinkFactors=[1])
+                self.registration_method.SetSmoothingSigmasPerLevel(smoothingSigmas=[1])
+                # self.registration_method.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
 
-            # don't optimize in-place, we would possibly like to run this cell multiple times
-            self.registration_method.SetInitialTransform(initial_transform, inPlace=False)
+                # don't optimize in-place, we would possibly like to run this cell multiple times
+                self.registration_method.SetInitialTransform(initial_transform, inPlace=False)
 
-            # connect all of the observers so that we can perform plotting during registration
-            # self.registration_method.AddCommand(sitk.sitkMultiResolutionIterationEvent, updateDisplay)
-            self.registration_method.AddCommand(sitk.sitkIterationEvent, self.updateEvent)
+                # connect all of the observers so that we can perform plotting during registration
+                # self.registration_method.AddCommand(sitk.sitkMultiResolutionIterationEvent, updateDisplay)
+                self.percentDone = 100 * slicesDone / (nFrames * totalnSlices)
+                self.registration_method.AddCommand(sitk.sitkIterationEvent, self.updateEvent)
 
-            final_transform = self.registration_method.Execute(fixed_image, moving_image)
+                final_transform = self.registration_method.Execute(fixed_image, moving_image)
 
-            print('Final metric value: {0}'.format(self.registration_method.GetMetricValue()))
-            print('Optimizer\'s stopping condition, {0}'.format(self.registration_method.GetOptimizerStopConditionDescription()))
+                print('Final metric value: {0}'.format(self.registration_method.GetMetricValue()))
+                print('Optimizer\'s stopping condition, {0}'.format(
+                    self.registration_method.GetOptimizerStopConditionDescription()))
 
-            transformobject.transform[i] = final_transform
+                sliceTransform.append(final_transform)
 
-            if self.cancelled:
-                return None
+                # Replaces the data with the registered slice
+                d[:, curSlice, :] = sitk.GetArrayFromImage(sitk.Resample(
+                    moving_image, final_transform, sitk.sitkLinear, 0.0,
+                    moving_image.GetPixelIDValue())).astype(numpy.uint8)
 
+                slicesDone += 1
+                if self.cancelled:
+                    return None
+
+            transformobject.transform[i] = sliceTransform
+
+        self.percentDone = 0
         # Appends the transforms to the target project.trialData object
         target.transforms.append(transformobject)
 
@@ -186,12 +206,12 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
         progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
-        progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
-        self.progress = progress.percentDone
+        progress.percentDone = self.percentDone
+        progress.totalPercentDone = (self.nDone + self.percentDone/100)/self.nTotal*100
         return progress
 
-class registerToHighResolutionScanParameters(object):
+
+class registerToHighResolutionScanZSlicesParameters(object):
     def __init__(self):
         self.learningRate = 1
         self.numberOfIterations = 300
@@ -210,9 +230,9 @@ class registerToHighResolutionScanParameters(object):
                                                     ['Each iteration', 'Once', 'Never']],
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
-class registerToHighResolutionScanTransform(transform.transform):
+class registerToHighResolutionScanZSlicesTransform(transform.transform):
     def __init__(self, nFrames=0):
-        super(registerToHighResolutionScanTransform, self).__init__()
+        super(registerToHighResolutionScanZSlicesTransform, self).__init__()
 
         # This transform is applied to an entire trial
         self.type = transform.TRIALWISE
@@ -221,19 +241,30 @@ class registerToHighResolutionScanTransform(transform.transform):
         self.transform = [sitk.Euler3DTransform() for i in range(nFrames)]
 
         # The transform's name
-        self.name = 'registerToHighResolutionScan'
+        self.name = 'registerToHighResolutionScanZSlices'
 
     def apply(self, data):
         transformed_data = []
 
-        print("Applying registerToHighResolutionScanTransform")
-        for i,d in enumerate(data):
-            image = sitk.GetImageFromArray(d.astype(numpy.double))
-            rimage = sitk.Resample(image, self.transform[i], sitk.sitkLinear, 0.0, image.GetPixelIDValue())
-            transformed_data.append(sitk.GetArrayFromImage(rimage).astype(numpy.uint8))
+        print("Applying registerToHighResolutionScanZSlicesTransform")
+        nSlices = data[0].shape
+
+        for i, d in enumerate(data):
+            frameData = d.copy(order='C')
+            nDone = 0
+            curAxis = 1
+            for curSlice in range(nSlices[curAxis]):
+                image = sitk.GetImageFromArray(frameData[:, curSlice, :].astype(numpy.double))
+                rimage = sitk.Resample(image, self.transform[i][nDone], sitk.sitkLinear, 0.0,
+                                       image.GetPixelIDValue())
+
+                frameData[:, curSlice, :] = sitk.GetArrayFromImage(rimage).astype(numpy.uint8)
+                nDone += 1
+
+            transformed_data.append(frameData)
 
         return transformed_data
 
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
-filter = registerToHighResolutionScan
+filter = registerToHighResolutionScanZSlices
 

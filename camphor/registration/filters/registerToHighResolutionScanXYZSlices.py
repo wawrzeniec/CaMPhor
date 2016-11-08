@@ -95,7 +95,7 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
         # Creates the transform object
         transformobject = registerToHighResolutionScanXYZSlicesTransform(nFrames=nFrames)
 
-        nSlices = template.shape
+        nSlices = data[0].shape
         totalnSlices = sum(nSlices)
 
         slicesDone = 0
@@ -103,8 +103,10 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
             sliceTransform = []
 
             # Resamples
-            fixed_image = sitk.GetImageFromArray(template.astype(numpy.double)) # template is passed as double already so no need to cast
+            fixed_image = sitk.GetImageFromArray(template.astype(numpy.double))
             moving_image = sitk.GetImageFromArray(d.astype(numpy.double))
+            print("template size:", fixed_image.GetSize())
+            print("data size:", moving_image.GetSize())
 
             print(fixed_image.GetSize())
             lxf, lyf, lzf = fixed_image.GetSize()
@@ -112,19 +114,20 @@ class registerToHighResolutionScanXYZSlices(camphorRegistrationMethod):
             moving_image.SetSpacing((lxf/lxm,lyf/lym,lzf/lzm))
 
             # First we need to resample the data to match the dimensions of the template
-            resampled_image = sitk.Image(fixed_image.GetSize(), fixed_image.GetPixelIDValue())
-            resampled_image.SetSpacing((1,1,1))
-            resampled_image.SetOrigin(fixed_image.GetOrigin())
-            resampled_image.SetDirection(fixed_image.GetDirection())
+            resampled_template = sitk.Image(moving_image.GetSize(), moving_image.GetPixelIDValue())
+            resampled_template.SetSpacing((lxf / lxm, lyf / lym, lzf / lzm))
+            resampled_template.SetOrigin(moving_image.GetOrigin())
+            resampled_template.SetDirection(moving_image.GetDirection())
 
             # Resample original image using identity transform and the BSpline interpolator.
             resample = sitk.ResampleImageFilter()
-            resample.SetReferenceImage(resampled_image)
+            resample.SetReferenceImage(resampled_template)
             resample.SetInterpolator(sitk.sitkBSpline)
             resample.SetTransform(sitk.Transform())
-            resampled_image = resample.Execute(moving_image)
+            resampled_template = resample.Execute(fixed_image)
+            print("resampled image size:", resampled_template.GetSize())
 
-            d = sitk.GetArrayFromImage(resampled_image)
+            template = sitk.GetArrayFromImage(resampled_template)
 
             for curAxis in range(3):
                 for curSlice in range(nSlices[curAxis]):
@@ -260,7 +263,6 @@ class registerToHighResolutionScanXYZSlicesTransform(transform.transform):
 
         print("Applying registerToHighResolutionScanXYZSlicesTransform")
         nSlices = data[0].shape
-        totalnSlices = sum(nSlices)
 
         for i, d in enumerate(data):
             frameData = d.copy(order='C')

@@ -288,14 +288,15 @@ class allItemsContextMenu(QtGui.QMenu):
             self.addMenu(self.showtDiff)
 
         elif(len(brain)==2):
-            self.addMenu(self.showDiff)
-            self.addSeparator()
             self.addMenu(self.overlay)
             allhasVOI = True
             for i in range(len(brain)):
                 allhasVOI = allhasVOI and treeview.camphor.project.brain[brain[i]].trial[trial[i]].VOIdata != []
             if allhasVOI:
                 self.addMenu(self.overlayVOIs)
+            self.addSeparator()
+            self.addMenu(self.showDiff)
+
         else:
             allhasVOI = True
             for i in range(len(brain)):

@@ -73,7 +73,7 @@ class camphorStack(camphorDisplayObject):
         self.data = []          # reference to the data array
         self.tdata = []         # reference to the transformed data
         self.transforms = []    # reference to the set of transforms
-        self.DFata = []         # reference to the DF/F data array
+        self.DFdata = []        # reference to the DF/F data array
         self.tDFdata = []       # reference to the transformed DF/F data
 
         # Display mode: raw fluorescence or dF/F
@@ -84,6 +84,16 @@ class camphorStack(camphorDisplayObject):
         self.DFtable = vtk.vtkLookupTable()
         self.sliceTable = vtk.vtkLookupTable()
         self.DFsliceTable = vtk.vtkLookupTable()
+        self.colorMap = vtk.vtkColorTransferFunction()
+        self.opacityMap = vtk.vtkPiecewiseFunction()
+        self.sliceOpacityMap = vtk.vtkPiecewiseFunction()
+        self.DFcolorMap = vtk.vtkColorTransferFunction()
+        self.DFopacityMap = vtk.vtkPiecewiseFunction()
+        self.DFsliceOpacityMap = vtk.vtkPiecewiseFunction()
+        self.currentColorMap = self.colorMap
+        self.currentOpacityMap = self.opacityMap
+        self.currentSliceColorMap = self.colorMap
+        self.currentSliceOpacityMap = self.sliceOpacityMap
 
         self.numberOfTimeFrames = 0
         self.currentTimeFrame = None
@@ -102,15 +112,30 @@ class camphorStack(camphorDisplayObject):
             self.importer[0].SetImportVoidPointer(self.data[self.currentTimeFrame])
             self.image[0].SetLookupTable(self.table)
             self.slice[0].SetLookupTable(self.sliceTable)
+            self.currentColorMap = self.colorMap
+            self.currentOpacityMap = self.opacityMap
+            self.currentSliceColorMap = self.colorMap
+            self.currentSliceOpacityMap = self.sliceOpacityMap
+            self.displayMode = mode
+            self.importer[0].Modified()
+            self.slice[0].Update()
 
         elif mode==1:
-            self.importer[0].SetImportVoidPointer(self.DFdata[self.currentTimeFrame])
-            self.image[0].SetLookupTable(self.DFtable)
-            self.slice[0].SetLookupTable(self.DFsliceTable)
+            # Does not allow this display mode if there is noly one time frame
+            if self.numberOfTimeFrames > 1:
+                self.importer[0].SetImportVoidPointer(self.DFdata[self.currentTimeFrame])
+                self.image[0].SetLookupTable(self.DFtable)
+                self.slice[0].SetLookupTable(self.DFsliceTable)
+                self.currentColorMap = self.DFcolorMap
+                self.currentOpacityMap = self.DFopacityMap
+                self.currentSliceColorMap = self.DFcolorMap
+                self.currentSliceOpacityMap = self.DFsliceOpacityMap
+                self.displayMode = mode
+                self.importer[0].Modified()
+                self.slice[0].Update()
 
-        self.importer[0].Modified()
-        self.slice[0].Update()
-        self.displayMode = mode
+
+
 
     def setDisplayModeToRaw(self):
         """
@@ -147,130 +172,134 @@ class camphorStack(camphorDisplayObject):
         :return:            nothing
 
         """
-        colorMap = vtk.vtkColorTransferFunction()
-        opacityMap = vtk.vtkPiecewiseFunction()
-        sliceOpacityMap = vtk.vtkPiecewiseFunction()
-        DFcolorMap = vtk.vtkColorTransferFunction()
-        DFopacityMap = vtk.vtkPiecewiseFunction()
-        DFsliceOpacityMap = vtk.vtkPiecewiseFunction()
+        self.colorMap = vtk.vtkColorTransferFunction()
+        self.opacityMap = vtk.vtkPiecewiseFunction()
+        self.sliceOpacityMap = vtk.vtkPiecewiseFunction()
+        self.DFcolorMap = vtk.vtkColorTransferFunction()
+        self.DFopacityMap = vtk.vtkPiecewiseFunction()
+        self.DFsliceOpacityMap = vtk.vtkPiecewiseFunction()
 
         if str.lower(colormap) == 'standard':
-            opacityMap.AddPoint(0, 0)
-            opacityMap.AddPoint(255, 0.5)
+            self.opacityMap.AddPoint(0, 0)
+            self.opacityMap.AddPoint(255, 0.5)
 
-            sliceOpacityMap.AddPoint(0, 0.25)
-            sliceOpacityMap.AddPoint(8, 0.5)
-            sliceOpacityMap.AddPoint(16, 1)
-            sliceOpacityMap.AddPoint(255, 1)
+            self.sliceOpacityMap.AddPoint(0, 0.25)
+            self.sliceOpacityMap.AddPoint(8, 0.5)
+            self.sliceOpacityMap.AddPoint(16, 1)
+            self.sliceOpacityMap.AddPoint(255, 1)
 
-            colorMap.SetColorSpaceToRGB()
-            colorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
-            colorMap.AddRGBPoint(128, 1, 1, 1)
-            colorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.colorMap.AddRGBPoint(128, 1, 1, 1)
+            self.colorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
 
-            DFcolorMap.SetColorSpaceToRGB()
-            DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
-            DFcolorMap.AddRGBPoint(80, 1, 1, 1)
-            DFcolorMap.AddRGBPoint(160, 1.0, 0.0, 0.0)
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.DFcolorMap.AddRGBPoint(80, 1, 1, 1)
+            self.DFcolorMap.AddRGBPoint(160, 1.0, 0.0, 0.0)
 
-            DFopacityMap.AddPoint(0, 0)
-            DFopacityMap.AddPoint(160, 0.5)
+            self.DFopacityMap.AddPoint(0, 0)
+            self.DFopacityMap.AddPoint(160, 0.5)
 
-            DFsliceOpacityMap.AddPoint(0, 0.25)
-            DFsliceOpacityMap.AddPoint(8, 0.5)
-            DFsliceOpacityMap.AddPoint(16, 1)
-            DFsliceOpacityMap.AddPoint(255, 1)
+            self.DFsliceOpacityMap.AddPoint(0, 0.25)
+            self.DFsliceOpacityMap.AddPoint(8, 0.5)
+            self.DFsliceOpacityMap.AddPoint(16, 1)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
 
         elif str.lower(colormap) == 'diff':
-            opacityMap.AddPoint(0, 0.5)
-            opacityMap.AddPoint(128, 0.0)
-            opacityMap.AddPoint(255, 0.5)
+            self.opacityMap.AddPoint(0, 1)
+            self.opacityMap.AddPoint(96, 0.1)
+            self.opacityMap.AddPoint(128, 0.0)
+            self.opacityMap.AddPoint(160, 0.1)
+            self.opacityMap.AddPoint(255, 1)
 
-            sliceOpacityMap.AddPoint(0, 1)
-            sliceOpacityMap.AddPoint(112, 1)
-            sliceOpacityMap.AddPoint(120, 0.5)
-            sliceOpacityMap.AddPoint(128, 0.25)
-            sliceOpacityMap.AddPoint(136, 0.5)
-            sliceOpacityMap.AddPoint(142, 1)
-            sliceOpacityMap.AddPoint(255, 1)
+            self.sliceOpacityMap.AddPoint(0, 1)
+            self.sliceOpacityMap.AddPoint(112, 1)
+            self.sliceOpacityMap.AddPoint(120, 0.5)
+            self.sliceOpacityMap.AddPoint(128, 0.25)
+            self.sliceOpacityMap.AddPoint(136, 0.5)
+            self.sliceOpacityMap.AddPoint(142, 1)
+            self.sliceOpacityMap.AddPoint(255, 1)
 
-            colorMap.SetColorSpaceToRGB()
-            colorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
-            colorMap.AddRGBPoint(128, 0.1, 0.1, 0.1)
-            colorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.colorMap.AddRGBPoint(128, 1, 1, 1)
+            self.colorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
 
-            DFopacityMap.AddPoint(0, 0.5)
-            DFopacityMap.AddPoint(128, 0.0)
-            DFopacityMap.AddPoint(255, 0.5)
+            self.DFopacityMap.AddPoint(0, 1)
+            self.DFopacityMap.AddPoint(96, 0.1)
+            self.DFopacityMap.AddPoint(128, 0.0)
+            self.DFopacityMap.AddPoint(160, 0.1)
+            self.DFopacityMap.AddPoint(255, 1)
 
-            DFsliceOpacityMap.AddPoint(0, 1)
-            DFsliceOpacityMap.AddPoint(112, 1)
-            DFsliceOpacityMap.AddPoint(120, 0.5)
-            DFsliceOpacityMap.AddPoint(128, 0.25)
-            DFsliceOpacityMap.AddPoint(136, 0.5)
-            DFsliceOpacityMap.AddPoint(142, 1)
-            DFsliceOpacityMap.AddPoint(255, 1)
+            self.DFsliceOpacityMap.AddPoint(0, 1)
+            self.DFsliceOpacityMap.AddPoint(112, 1)
+            self.DFsliceOpacityMap.AddPoint(120, 0.5)
+            self.DFsliceOpacityMap.AddPoint(128, 0.25)
+            self.DFsliceOpacityMap.AddPoint(136, 0.5)
+            self.DFsliceOpacityMap.AddPoint(142, 1)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
 
-            DFcolorMap.SetColorSpaceToRGB()
-            DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
-            DFcolorMap.AddRGBPoint(128, 0.1, 0.1, 0.1)
-            DFcolorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.DFcolorMap.AddRGBPoint(128, 1, 1, 1)
+            self.DFcolorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
 
         elif str.lower(colormap) == 'magenta':
-            opacityMap.AddPoint(0, 0)
-            opacityMap.AddPoint(255, 0.25)
+            self.opacityMap.AddPoint(0, 0)
+            self.opacityMap.AddPoint(255, 0.25)
 
-            sliceOpacityMap.AddPoint(0, 0.25)
-            sliceOpacityMap.AddPoint(8, 0.5)
-            sliceOpacityMap.AddPoint(16, 1)
-            sliceOpacityMap.AddPoint(255, 1)
+            self.sliceOpacityMap.AddPoint(0, 0.0)
+            self.sliceOpacityMap.AddPoint(8, 0.25)
+            self.sliceOpacityMap.AddPoint(16, 5)
+            self.sliceOpacityMap.AddPoint(255, 1)
 
-            colorMap.SetColorSpaceToRGB()
-            colorMap.AddRGBPoint(0, 1.0, 0.0, 1.0)
-            colorMap.AddRGBPoint(255, 1.0, 0.0, 1.0)
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 0.0, 0.0, 0.0)
+            self.colorMap.AddRGBPoint(128, 1.0, 0.0, 1.0)
 
-            DFcolorMap.SetColorSpaceToRGB()
-            DFcolorMap.AddRGBPoint(0, 1.0, 0.0, 1.0)
-            DFcolorMap.AddRGBPoint(255, 1.0, 0.0, 1.0)
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 0, 0, 0)
+            self.DFcolorMap.AddRGBPoint(96, 1.0, 0.0, 1.0)
 
-            DFopacityMap.AddPoint(0, 0)
-            DFopacityMap.AddPoint(160, 0.25)
+            self.DFopacityMap.AddPoint(0, 0)
+            self.DFopacityMap.AddPoint(160, 0.25)
 
-            DFsliceOpacityMap.AddPoint(0, 0.25)
-            DFsliceOpacityMap.AddPoint(8, 0.5)
-            DFsliceOpacityMap.AddPoint(16, 1)
-            DFsliceOpacityMap.AddPoint(255, 1)
+            self.DFsliceOpacityMap.AddPoint(0, 0.0)
+            self.DFsliceOpacityMap.AddPoint(8, 0.25)
+            self.DFsliceOpacityMap.AddPoint(16, 0.5)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
 
         elif str.lower(colormap) == 'green':
-            opacityMap.AddPoint(0, 0)
-            opacityMap.AddPoint(255, 0.25)
+            self.opacityMap.AddPoint(0, 0)
+            self.opacityMap.AddPoint(255, 0.25)
 
-            sliceOpacityMap.AddPoint(0, 0.25)
-            sliceOpacityMap.AddPoint(8, 0.5)
-            sliceOpacityMap.AddPoint(16, 1)
-            sliceOpacityMap.AddPoint(255, 1)
+            self.sliceOpacityMap.AddPoint(0, 0.0)
+            self.sliceOpacityMap.AddPoint(8, 0.25)
+            self.sliceOpacityMap.AddPoint(16, 0.5)
+            self.sliceOpacityMap.AddPoint(255, 1)
 
-            colorMap.SetColorSpaceToRGB()
-            colorMap.AddRGBPoint(0, 0.0, 1.0, 0.0)
-            colorMap.AddRGBPoint(255, 0.0, 1.0, 0.0)
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 0.0, 0.0, 0.0)
+            self.colorMap.AddRGBPoint(128, 0.0, 1.0, 0.0)
 
-            DFcolorMap.SetColorSpaceToRGB()
-            DFcolorMap.AddRGBPoint(0, 0.0, 1.0, 0.0)
-            DFcolorMap.AddRGBPoint(255, 0.0, 1.0, 0.0)
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 0.0)
+            self.DFcolorMap.AddRGBPoint(96, 0.0, 1.0, 0.0)
 
-            DFopacityMap.AddPoint(0, 0)
-            DFopacityMap.AddPoint(160, 0.25)
+            self.DFopacityMap.AddPoint(0, 0)
+            self.DFopacityMap.AddPoint(160, 0.25)
 
-            DFsliceOpacityMap.AddPoint(0, 0.25)
-            DFsliceOpacityMap.AddPoint(8, 0.5)
-            DFsliceOpacityMap.AddPoint(16, 1)
-            DFsliceOpacityMap.AddPoint(255, 1)
+            self.DFsliceOpacityMap.AddPoint(0, 0.0)
+            self.DFsliceOpacityMap.AddPoint(8, 0.25)
+            self.DFsliceOpacityMap.AddPoint(16, 0.5)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
 
         for i in range(256):
-            self.table.SetTableValue(i, list(colorMap.GetColor(i)) + [opacityMap.GetValue(i)])
-            self.sliceTable.SetTableValue(i, list(colorMap.GetColor(i)) + [sliceOpacityMap.GetValue(i)])
-            self.DFtable.SetTableValue(i, list(DFcolorMap.GetColor(i)) + [DFopacityMap.GetValue(i)])
-            self.DFsliceTable.SetTableValue(i, list(DFcolorMap.GetColor(i)) + [DFsliceOpacityMap.GetValue(i)])
+            self.table.SetTableValue(i, list(self.colorMap.GetColor(i)) + [self.opacityMap.GetValue(i)])
+            self.sliceTable.SetTableValue(i, list(self.colorMap.GetColor(i)) + [self.sliceOpacityMap.GetValue(i)])
+            self.DFtable.SetTableValue(i, list(self.DFcolorMap.GetColor(i)) + [self.DFopacityMap.GetValue(i)])
+            self.DFsliceTable.SetTableValue(i, list(self.DFcolorMap.GetColor(i)) + [self.DFsliceOpacityMap.GetValue(i)])
 
     def setTimeFrame(self, t):
         """
@@ -281,23 +310,26 @@ class camphorStack(camphorDisplayObject):
         :param t: integer specifying the requested time frame
         :return: true on success, false on error
         """
-
-        if t > self.numberOfTimeFrames:
-            if self.displayMode==0:
-                self.importer[0].SetImportVoidPointer(self.data[-1])
-            elif self.displayMode==1:
-                self.importer[0].SetImportVoidPointer(self.DFdata[-1])
-            self.importer[0].Modified()
-            self.currentTimeFrame = self.numberOfTimeFrames
-            return False
+        print(t)
+        if self.numberOfTimeFrames > 1:
+            if t+1 > self.numberOfTimeFrames:
+                if self.displayMode==0:
+                    self.importer[0].SetImportVoidPointer(self.data[-1])
+                elif self.displayMode==1:
+                    self.importer[0].SetImportVoidPointer(self.DFdata[-1])
+                self.importer[0].Modified()
+                self.currentTimeFrame = self.numberOfTimeFrames
+                return False
+            else:
+                if self.displayMode==0:
+                    self.importer[0].SetImportVoidPointer(self.data[t])
+                elif self.displayMode==1:
+                    self.importer[0].SetImportVoidPointer(self.DFdata[t])
+                self.importer[0].Modified()
+                self.currentTimeFrame = t
+                return True
         else:
-            if self.displayMode==0:
-                self.importer[0].SetImportVoidPointer(self.data[t])
-            elif self.displayMode==1:
-                self.importer[0].SetImportVoidPointer(self.DFdata[t])
-            self.importer[0].Modified()
-            self.currentTimeFrame = t
-            return True
+            return False
 
     def calculateDF(self, baseline_endframe):
         """
@@ -341,6 +373,9 @@ class camphorBlendedStacks(camphorDisplayObject):
         self.sliceOutput = self.sliceBlender
 
         self.stack = [camphorStack() for i in range(2)]
+        self.append = vtk.vtkImageAppendComponents()
+        self.slice = [vtk.vtkImageReslice() for i in range(2)]
+        self.sliceAppend = vtk.vtkImageAppendComponents()
 
         # Display mode: raw fluorescence or dF/F
         self.displayMode = 0
@@ -377,6 +412,10 @@ class camphorBlendedStacks(camphorDisplayObject):
             self.stack[0].setColorMap(colormap='magenta')
             self.stack[1].setColorMap(colormap='green')
 
+        for i in range(self.numberOfDataSets):
+            self.volumeProperty.SetScalarOpacity(i, self.stack[i].currentOpacityMap)
+            self.volumeProperty.SetColor(i, self.stack[i].currentColorMap)
+
 
     def setDisplayMode(self, mode):
         """
@@ -392,6 +431,10 @@ class camphorBlendedStacks(camphorDisplayObject):
             s.setDisplayMode(mode)
 
         self.displayMode = mode
+
+        for i in range(self.numberOfDataSets):
+            self.volumeProperty.SetScalarOpacity(i, self.stack[i].currentOpacityMap)
+            self.volumeProperty.SetColor(i, self.stack[i].currentColorMap)
 
 
     def setDisplayModeToRaw(self):
@@ -592,6 +635,8 @@ def makeStack(data, transforms = [], colormap='standard', baseline_endframe = 2)
     """
 
     if not isinstance(data,list):
+        # This is in case the data is not passed as an array; however,
+        # this will create a copy of the data, so that changes cannot be tracked...
         data = [data]
 
     lz, ly, lx = data[0].shape
@@ -794,6 +839,7 @@ def mergeVOIs(data):
     cV.luminance.SetInputConnection(cV.sliceBlender.GetOutputPort())
     cV.append.AddInputConnection(cV.sliceBlender.GetOutputPort())
     cV.append.AddInputConnection(cV.luminance.GetOutputPort())
+    cV.append.Update()
 
     # Connects the objects to their mapper
     cV.volumeMapper.SetInputConnection(cV.blender.GetOutputPort())
@@ -883,11 +929,12 @@ def mergeStacks(stacks):
     vtkTools.mergeStacks(stacks)
 
     This function merges two camphorStack objects together.
-    It can in principle blend any number of stacks, but the colormaps are yet undefined for n>2
-    It probably does not make much sense to try to blend more than 2 stacks
+    The principle is to use independent components and assign a colormap for each component
+    Thus it can in principle blend up to 4 stacks, but it probably does not make much sense above 2 stacks
 
     :param stacks:  array of camphorStack objects
     :return:        a camphorBlendedStacks object, for which the internal methods of camphorStack objects are overloaded
+                    so that we can use the setTimeFrame() and setDisplayMode() methods
     """
 
     cV = camphorBlendedStacks()
@@ -899,21 +946,21 @@ def mergeStacks(stacks):
     cV.numberOfTimeFrames = stacks[0].numberOfTimeFrames
     cV.slice = stacks[0].slice
     for i in range(1,cV.numberOfDataSets):
-        cV.numberOfTimeFrames = min(cV.numberOfTimeFrames, stacks[i].numberOfTimeFrames)
+        cV.numberOfTimeFrames = max(cV.numberOfTimeFrames, stacks[i].numberOfTimeFrames)
         cV.slice += stacks[i].slice
 
-    cV.blender.RemoveAllInputConnections(0)
+    cV.append.RemoveAllInputConnections(0)
     cV.sliceBlender.RemoveAllInputConnections(0)
 
     for i in range(cV.numberOfDataSets):
-        cV.blender.AddInputConnection(cV.stack[i].image[0].GetOutputPort())
+        cV.append.AddInputConnection(cV.stack[i].importer[0].GetOutputPort())
+        cV.slice[i].SetOutputFormatToRGB()
         cV.sliceBlender.AddInputConnection(cV.stack[i].slice[0].GetOutputPort())
-        cV.blender.SetOpacity(i, 0.5)
         cV.sliceBlender.SetOpacity(i, 0.5)
-
+    cV.append.Update()
 
     # Connects the objects to their mapper
-    cV.volumeMapper.SetInputConnection(cV.blender.GetOutputPort())
+    cV.volumeMapper.SetInputConnection(cV.append.GetOutputPort())
     cV.sliceMapper.SetInputConnection(cV.sliceBlender.GetOutputPort())
 
     opacityMap = vtk.vtkPiecewiseFunction()
@@ -921,8 +968,10 @@ def mergeStacks(stacks):
     opacityMap.AddPoint(255, 1)
 
     # Turns off independent components in order to render RGBA images
-    cV.volumeProperty.IndependentComponentsOff()
-    cV.volumeProperty.SetScalarOpacity(0, opacityMap)
+    cV.volumeProperty.IndependentComponentsOn()
+    for i in range(cV.numberOfDataSets):
+        cV.volumeProperty.SetScalarOpacity(i, cV.stack[i].opacityMap)
+        cV.volumeProperty.SetColor(i, cV.stack[i].colorMap)
 
     cV.volume.SetMapper(cV.volumeMapper)
     cV.sliceActor.SetMapper(cV.sliceMapper)
@@ -934,8 +983,215 @@ def mergeStacks(stacks):
     cV.volume.SetProperty(cV.volumeProperty)
     cV.sliceActor.SetProperty(cV.sliceProperty)
 
+    cV.dimensions = list(cV.append.GetOutput().GetDimensions())
+
     return cV
 
+def diffStacks(stack1, stack2, colormap='diff'):
+    """
+    vtkTools.diffStacks(stack1, stack2, colormap='diff')
+
+    Returns a camphorStack object whose data is the difference of the data in stacks 1 and 2
+    The data is rescaled so that a null difference corresponds to an intensity of 128.
+
+    :param stack1:      a camphorStack object
+    :param stack2:      a camphorStack object
+    :return:            a camphorStack object whose data is the difference of the data in the inputs
+    """
+
+    cV = camphorStack()
+    cV.data = rescaledDifference(stack1.data, stack2.data)
+    cV.DFdata = rescaledDifference(stack1.DFdata, stack2.DFdata)
+    cV.tdata = rescaledDifference(stack1.tdata, stack2.tdata)
+    cV.tDFdata = rescaledDifference(stack1.tDFdata, stack2.tDFdata)
+
+    cV.numberOfTimeFrames = len(cV.data)
+    cV.currentTimeFrame = 0
+
+    lx,ly,lz = stack1.dimensions
+    cV.dimensions = stack1.dimensions
+
+    cV.importer = [vtk.vtkImageImport()]
+    cV.image = [vtk.vtkImageMapToColors()]
+    cV.slice = [vtk.vtkImageResliceToColors()]
+
+    # Sets up the importer
+    cV.importer[0].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+    cV.importer[0].SetDataExtentToWholeExtent()
+
+    dataType = cV.data[0].dtype
+    if dataType == numpy.uint8:
+        cV.importer[0].SetDataScalarTypeToUnsignedChar()
+    elif dataType == numpy.uint16:
+        cV.importer[0].SetDataScalarTypeToUnsignedShort()
+    elif dataType == numpy.int:
+        cV.importer[0].SetDataScalarTypeToInt()
+    elif dataType == numpy.float:
+        cV.importer[0].SetDataScalarTypeToFloat()
+    elif dataType == numpy.float:
+        cV.importer[0].SetDataScalarTypeToDouble()
+
+    cV.table.SetRange(0, 255)
+    cV.sliceTable.SetRange(0, 255)
+    cV.DFtable.SetRange(0, 255)
+    cV.DFsliceTable.SetRange(0, 255)
+    if colormap is None:
+        colormap = 'diff'
+    cV.setColorMap(colormap)
+    cV.setDisplayModeToRaw()
+
+    cV.image[0].SetInputConnection(cV.importer[0].GetOutputPort())
+
+    # Initializes the slice
+    sagittal = vtk.vtkMatrix4x4()
+    sagittal.DeepCopy((0, 1, 0, 0,
+                       0, 0, 1, 127.5,
+                       1, 0, 0, 0,
+                       0, 0, 0, 1))
+
+    cV.slice[0].SetOutputDimensionality(2)
+    cV.slice[0].SetInterpolationModeToLinear()
+    cV.slice[0].SetResliceAxes(sagittal)
+    cV.slice[0].SetInputConnection(cV.importer[0].GetOutputPort())
+
+    cV.volumeMapper.SetInputConnection(cV.image[0].GetOutputPort())
+    cV.sliceMapper.SetInputConnection(cV.slice[0].GetOutputPort())
+
+    # Turns off independent components in order to render channels 1-4 as RGBA
+    opacityMap = vtk.vtkPiecewiseFunction()
+    opacityMap.AddPoint(0, 0)
+    opacityMap.AddPoint(255, 1)
+
+    cV.volumeProperty.IndependentComponentsOff()
+    cV.volumeProperty.SetScalarOpacity(0, opacityMap)
+
+    # Adjusts the properties of the slice
+    cV.sliceProperty.SetInterpolationTypeToNearest()
+
+    cV.volume.SetMapper(cV.volumeMapper)
+    cV.sliceActor.SetMapper(cV.sliceMapper)
+
+    cV.volume.SetProperty(cV.volumeProperty)
+    cV.sliceActor.SetProperty(cV.sliceProperty)
+
+    cV.numberOfDataSets = 1
+    cV.currentTimeFrame = 0
+
+    # the output
+    cV.output = cV.image[0]
+    cV.sliceOutput = cV.slice[0]
+
+    return cV
+
+
+def tdiffStack(stack, colormap='diff'):
+    """
+    vtkTools.tdiffStack(stack, colormap='diff')
+
+    Returns a camphorStack object whose data is the temporal difference of the data in the input stack
+    The data is rescaled so that a null difference corresponds to an intensity of 128.
+
+    :param stack:      a camphorStack object
+    :return:            a camphorStack object whose data is the temporal difference of the data in the input
+    """
+
+    cV = camphorStack()
+    cV.data = rescaledDifference(stack.data[0:-1], stack.data[1:])
+    cV.DFdata = rescaledDifference(stack.DFdata[0:-1], stack.DFdata[1:])
+    cV.tdata = rescaledDifference(stack.tdata[0:-1], stack.tdata[1:])
+    cV.tDFdata = rescaledDifference(stack.tDFdata[0:-1], stack.tDFdata[1:])
+
+    cV.numberOfTimeFrames = len(cV.data)
+    cV.currentTimeFrame = 0
+
+    lx, ly, lz = stack.dimensions
+    cV.dimensions = stack.dimensions
+
+    cV.importer = [vtk.vtkImageImport()]
+    cV.image = [vtk.vtkImageMapToColors()]
+    cV.slice = [vtk.vtkImageResliceToColors()]
+
+    # Sets up the importer
+    cV.importer[0].SetWholeExtent(0, lx - 1, 0, ly - 1, 0, lz - 1)
+    cV.importer[0].SetDataExtentToWholeExtent()
+
+    dataType = cV.data[0].dtype
+    if dataType == numpy.uint8:
+        cV.importer[0].SetDataScalarTypeToUnsignedChar()
+    elif dataType == numpy.uint16:
+        cV.importer[0].SetDataScalarTypeToUnsignedShort()
+    elif dataType == numpy.int:
+        cV.importer[0].SetDataScalarTypeToInt()
+    elif dataType == numpy.float:
+        cV.importer[0].SetDataScalarTypeToFloat()
+    elif dataType == numpy.float:
+        cV.importer[0].SetDataScalarTypeToDouble()
+
+    cV.table.SetRange(0, 255)
+    cV.sliceTable.SetRange(0, 255)
+    cV.DFtable.SetRange(0, 255)
+    cV.DFsliceTable.SetRange(0, 255)
+    if colormap is None:
+        colormap = 'diff'
+    cV.setColorMap(colormap)
+    cV.setDisplayModeToRaw()
+
+    cV.image[0].SetInputConnection(cV.importer[0].GetOutputPort())
+
+    # Initializes the slice
+    sagittal = vtk.vtkMatrix4x4()
+    sagittal.DeepCopy((0, 1, 0, 0,
+                       0, 0, 1, 127.5,
+                       1, 0, 0, 0,
+                       0, 0, 0, 1))
+
+    cV.slice[0].SetOutputDimensionality(2)
+    cV.slice[0].SetInterpolationModeToLinear()
+    cV.slice[0].SetResliceAxes(sagittal)
+    cV.slice[0].SetInputConnection(cV.importer[0].GetOutputPort())
+
+    cV.volumeMapper.SetInputConnection(cV.image[0].GetOutputPort())
+    cV.sliceMapper.SetInputConnection(cV.slice[0].GetOutputPort())
+
+    # Turns off independent components in order to render channels 1-4 as RGBA
+    opacityMap = vtk.vtkPiecewiseFunction()
+    opacityMap.AddPoint(0, 0)
+    opacityMap.AddPoint(255, 1)
+
+    cV.volumeProperty.IndependentComponentsOff()
+    cV.volumeProperty.SetScalarOpacity(0, opacityMap)
+
+    # Adjusts the properties of the slice
+    cV.sliceProperty.SetInterpolationTypeToNearest()
+
+    cV.volume.SetMapper(cV.volumeMapper)
+    cV.sliceActor.SetMapper(cV.sliceMapper)
+
+    cV.volume.SetProperty(cV.volumeProperty)
+    cV.sliceActor.SetProperty(cV.sliceProperty)
+
+    cV.numberOfDataSets = 1
+    cV.currentTimeFrame = 0
+
+    # the output
+    cV.output = cV.image[0]
+    cV.sliceOutput = cV.slice[0]
+
+    return cV
+
+def rescaledDifference(x1,x2):
+    """
+    vtkTools.rescaledDifference(x1,x2)
+
+    returns the rescaled difference of two uint8 x1 and x2, such that x1=x2 maps to 128
+
+    :param x1:  uint8 data (list of 3D numpy arrays)
+    :param x2:  uint8 data (list of 3D numpy arrays)
+    :return:    the rescaled difference x2-x1
+    """
+
+    return [numpy.uint8((x2[i].astype(numpy.double) - x1[i].astype(numpy.double)) / 2 + 128) for i in
+            range(len(x1))]
 
 def VOILookupTables(numberOfDataSets):
     """
