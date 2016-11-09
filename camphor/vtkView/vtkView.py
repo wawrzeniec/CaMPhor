@@ -1007,11 +1007,11 @@ class vtkView(QtGui.QFrame):
         self.slice = self.stack.slice + self.VOI.slice
 
         # No deltaF/F data with VOIs or HRS
-        self.displaydFAction.setEnabled(False)
+        self.displaydFAction.setEnabled(self.stack.numberOfTimeFrames>1)
 
         self.removeAllProps()
         self.displayProps([self.stack.volume, self.VOI.volume], [self.stack.sliceActor, self.VOI.sliceActor])
-        self.initView(self.stack.dimensions, 1)
+        self.initView(self.stack.dimensions, self.stack.numberOfTimeFrames)
         self.stackBeingDisplayed = True
         self.VOIBeingDisplayed = True
         self.updateVOIToolbar()

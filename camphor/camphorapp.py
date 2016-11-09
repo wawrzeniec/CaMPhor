@@ -301,7 +301,7 @@ class camphor(QtGui.QMainWindow):
 
         fun(VOIdata=VOIdata)
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
         if view == 1:
             self.vtkView.VOIPanel = VOIPanel
         elif view == 2:
@@ -449,7 +449,7 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].highResScan.transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
         if view==1:
             self.vtkView.VOIPanel= VOIPanel
         elif view==2:
@@ -492,7 +492,7 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].trial[trial].transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view))
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
         if view==1:
             self.vtkView.VOIPanel= VOIPanel
         elif view==2:
@@ -536,13 +536,52 @@ class camphor(QtGui.QMainWindow):
         fun(data=VOIdata)
 
         VOIPanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
-                                    message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i])) for i in range(len(VOIdata))]
+                                    message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
+                                    dockArea=self.VOIPanelDockArea) for i in range(len(VOIdata))]
         if view == 1:
             self.vtkView.VOIPanel = VOIPanel
         elif view == 2:
             self.vtkView2.VOIPanel = VOIPanel
         else:
             self.vtkView.VOIPanel = VOIPanel
+
+    def averageTrials(self, brain, trial, view):
+            """
+            camphorapp.averageTrials(brain, trial, view)
+            This function displays the average of the selected trials in the specified view
+            For efficiency, the average is computed here and passed to the vtkView object as stack data
+
+            :param brain:   brain index of the target trials (as list)
+            :param trial:   trial index of the target trials (as list)
+            :param view:    index of the vtkView in which to display the data
+            :return: nothing
+            """
+
+            nTrials = len(brain)
+            stackData = DataIO.LSMLoad(self.project.brain[0].trial[0].dataFile)
+            transforms = self.project.brain[0].trial[0].transforms
+            for t in transforms:
+                if t.active:
+                    stackData = t.apply(stackData)
+
+            averageData = [s.astype(numpy.double) for s in stackData]
+            nFrames = len(stackData)
+
+            for iTrial in range(1,nTrials):
+                stackData = DataIO.LSMLoad(self.project.brain[brain[iTrial]].trial[trial[iTrial]].dataFile)
+                transforms = self.project.brain[brain[iTrial]].trial[trial[iTrial]].transforms
+                for t in transforms:
+                    if t.active:
+                        stackData = t.apply(stackData)
+                for iFrame in range(nFrames):
+                    averageData[iFrame] += stackData[iFrame].astype(numpy.double)
+
+            if view == 1:
+                self.vtkView.assignData([(a/nTrials).astype(numpy.uint8) for a in averageData])
+            elif view == 2:
+                self.vtkView2.assignData([(a/nTrials).astype(numpy.uint8) for a in averageData])
+            else:
+                self.vtkView.assignData([(a/nTrials).astype(numpy.uint8) for a in averageData])
 
 ##################################
 #########       main () ##########

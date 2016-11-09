@@ -108,9 +108,23 @@ def makeLayout(self):
     self.mainWidget.setLayout(self.layout)
     self.setCentralWidget(self.mainWidget)
 
-    # Adds the registration tools widget
+    # Makes the "custom" dock area for VOI panels
+    self.VOIAdjust = QtGui.QDockWidget()
+    self.VOIAdjust.setWindowTitle("VOI Adjustment")
+    self.VOIPanelDockArea = QtGui.QMainWindow()
+    self.VOIAdjust.setWidget(self.VOIPanelDockArea)
+
+    # Adds the dockable widgets
+    self.setDockOptions(QtGui.QMainWindow.ForceTabbedDocks)
+    self.update()
     self.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.regTools)
     self.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.VOITools)
+    self.addDockWidget(QtCore.Qt.DockWidgetArea(2), self.VOIAdjust)
+    self.regTools.raise_()
+    self.VOIPanelDockArea.setDockOptions(QtGui.QMainWindow.AllowNestedDocks)
+
+    self.tabifyDockWidget(self.VOIAdjust, self.VOITools)
+    self.tabifyDockWidget(self.VOITools, self.regTools)
 
     # Starts the rendering
     self.vtkView.start()

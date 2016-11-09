@@ -71,7 +71,7 @@ class camphorVOIExtractionMethod(ABC):
     def setMessage(self, targetFunc):
         self.message = targetFunc
 
-    def controlWidget(self, camphor, baseData, VOIdata, message=None):
+    def controlWidget(self, camphor, baseData, VOIdata, message=None, dockArea=None):
         """
         VOIextractionMethod.controlWidget()
 
@@ -102,13 +102,15 @@ class camphorVOIExtractionMethod(ABC):
         def setParamList(key, valueList, value):
             setattr(self.parameters, key, valueList[value])
 
-        controlPanel = QtGui.QWidget(parent=camphor)
+        controlPanelContainer = QtGui.QDockWidget(parent=None)
+        controlPanel = QtGui.QWidget()
         controlPanel.setWindowFlags(QtCore.Qt.Tool)
         if message is None:
             panelTitle = "VOI Control Panel"
         else:
             panelTitle = "VOI Control Panel {:s}".format(message)
         controlPanel.setWindowTitle(panelTitle)
+        controlPanelContainer.setWindowTitle(panelTitle)
         layout = QtGui.QFormLayout()
 
         for i, param in enumerate(self._parameters._controls):
@@ -151,8 +153,18 @@ class camphorVOIExtractionMethod(ABC):
         recomputeButton.clicked.connect(updateVOIs)
         layout.addRow(recomputeButton)
         controlPanel.setLayout(layout)
-        controlPanel.show()
-        return controlPanel
+        controlPanelContainer.setWidget(controlPanel)
+        if dockArea is None:
+            controlPanelContainer.show()
+        else:
+            dockArea.addDockWidget(QtCore.Qt.DockWidgetArea(2), controlPanelContainer)
+            q = dockArea.findChildren(QtGui.QDockWidget)
+            if len(q)%2 == 0:
+                dockArea.splitDockWidget(q[-2],q[-1],QtCore.Qt.Horizontal)
+            dockArea.show()
+            dockArea.raise_()
+
+        return controlPanelContainer
 
     def updateVOIs(self, camphor, baseData, VOIdata):
         self.computeVOIs(baseData, VOIdata)

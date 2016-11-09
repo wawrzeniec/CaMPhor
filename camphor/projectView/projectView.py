@@ -211,7 +211,7 @@ class allItemsContextMenu(QtGui.QMenu):
         self.displayStack.addAction(self.displayStackAction1)
         self.displayStack.addAction(self.displayStackAction2)
 
-        self.displayVOIs = QtGui.QMenu('Displays VOIs')
+        self.displayVOIs = QtGui.QMenu('Display VOIs')
         self.displayVOIs.setStatusTip('Displays the VOIs of the selected trial in the specified view')
         self.displayVOIsAction1 = QtGui.QAction('In view 1', self)
         self.displayVOIsAction2 = QtGui.QAction('In view 2', self)
@@ -220,7 +220,7 @@ class allItemsContextMenu(QtGui.QMenu):
         self.displayVOIs.addAction(self.displayVOIsAction1)
         self.displayVOIs.addAction(self.displayVOIsAction2)
 
-        self.overlayVOIsOnStack = QtGui.QMenu('Overlay VOIs of selected trial on stack image')
+        self.overlayVOIsOnStack = QtGui.QMenu('Overlay VOIs of on stack')
         self.overlayVOIsOnStack.setStatusTip('Overlay VOIs of selected trial on stack image in the specified view')
         self.overlayVOIsOnStackAction1 = QtGui.QAction('In view 1', self)
         self.overlayVOIsOnStackAction2 = QtGui.QAction('In view 2', self)
@@ -266,6 +266,16 @@ class allItemsContextMenu(QtGui.QMenu):
         self.overlayVOIs.addAction(self.overlayVOIsAction1)
         self.overlayVOIs.addAction(self.overlayVOIsAction2)
 
+        self.averageTrials = QtGui.QMenu('Display average')
+        self.averageTrials.setStatusTip(
+            "Displys the average of the selected trials in the specified view")
+        self.averageTrialsAction1 = QtGui.QAction('In view 1', self)
+        self.averageTrialsAction2 = QtGui.QAction('In view 2', self)
+        self.averageTrialsAction1.triggered.connect(lambda x: treeview.camphor.averageTrials(brain, trial, view=1))
+        self.averageTrialsAction2.triggered.connect(lambda x: treeview.camphor.averageTrials(brain, trial, view=2))
+        self.averageTrials.addAction(self.averageTrialsAction1)
+        self.averageTrials.addAction(self.averageTrialsAction2)
+
         self.eraseTrial = QtGui.QAction('Erase selected trial(s)', self)
         self.eraseTrial.setStatusTip('Erase selected trial(s)')
         self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain,trial))
@@ -295,6 +305,7 @@ class allItemsContextMenu(QtGui.QMenu):
             if allhasVOI:
                 self.addMenu(self.overlayVOIs)
             self.addSeparator()
+            self.addMenu(self.averageTrials)
             self.addMenu(self.showDiff)
 
         else:
@@ -303,6 +314,8 @@ class allItemsContextMenu(QtGui.QMenu):
                 allhasVOI = allhasVOI and treeview.camphor.project.brain[brain[i]].trial[trial[i]].VOIdata != []
             if allhasVOI:
                 self.addMenu(self.overlayVOIs)
+            self.addSeparator()
+            self.addMenu(self.averageTrials)
 
         self.addSeparator()
         self.addAction(self.eraseTrial)
