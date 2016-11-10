@@ -166,7 +166,7 @@ class registerToTrialBaseline2(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformobject = registerToTrialBaseline2Transform(nFrames=nFrames)
+        transformObject = registerToTrialBaseline2Transform(nFrames=nFrames)
 
         fixed_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
         for i, d in enumerate(data):
@@ -184,13 +184,13 @@ class registerToTrialBaseline2(camphorRegistrationMethod):
             if self.parameters.objectiveFunction == 'MattesMutualInformation':
                 self.registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
             elif self.parameters.objectiveFunction == 'Correlation':
-                transformobject.registration_method.SetMetricAsCorrelation()
+                self.registration_method.SetMetricAsCorrelation()
             elif self.parameters.objectiveFunction == 'ANTSNeighborhoodCorrelation':
-                transformobject.registration_method.SetMetricAsANTSNeighborhoodCorrelation(5)
+                self.registration_method.SetMetricAsANTSNeighborhoodCorrelation(5)
             elif self.parameters.objectiveFunction == 'JointHistogramMutualInformation':
-                transformobject.registration_method.SetMetricAsJointHistogramMutualInformation(numberOfHistogramBins=20,varianceForJointPDFSmoothing=1.5)
+                self.registration_method.SetMetricAsJointHistogramMutualInformation(numberOfHistogramBins=20,varianceForJointPDFSmoothing=1.5)
             elif self.parameters.objectiveFunction == 'MeanSquares':
-                transformobject.registration_method.SetMetricAsMeanSquares() # mean squares does not seem to work well at all
+                self.registration_method.SetMetricAsMeanSquares() # mean squares does not seem to work well at all
 
             self.registration_method.SetMetricSamplingStrategy(self.registration_method.RANDOM)
             self.registration_method.SetMetricSamplingPercentage(1)
@@ -224,12 +224,12 @@ class registerToTrialBaseline2(camphorRegistrationMethod):
             print('Final metric value: {0}'.format(self.registration_method.GetMetricValue()))
             print('Optimizer\'s stopping condition, {0}'.format(self.registration_method.GetOptimizerStopConditionDescription()))
 
-            transformobject.transform[i] = final_transform
+            transformObject.transform[i] = final_transform
 
             if self.cancelled:
                 return None
 
-        return transformobject
+        return transformObject
 
     def getProgress(self):
         progress = camphorRegistrationProgress()

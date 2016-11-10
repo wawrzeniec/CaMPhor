@@ -301,7 +301,9 @@ class camphor(QtGui.QMainWindow):
 
         fun(VOIdata=VOIdata)
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata, message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata,
+                                   message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
+                                   dockArea=self.VOIPanelDockArea)
         if view == 1:
             self.vtkView.VOIPanel = VOIPanel
         elif view == 2:
@@ -449,7 +451,9 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].highResScan.transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0],
+                                   message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
+                                   dockArea=self.VOIPanelDockArea)
         if view==1:
             self.vtkView.VOIPanel= VOIPanel
         elif view==2:
@@ -492,7 +496,9 @@ class camphor(QtGui.QMainWindow):
         stackTransforms = self.project.brain[brain].trial[trial].transforms
         fun(VOIdata=VOIdata, stackData=stackData, stackTransforms=stackTransforms, colormap='Standard')
 
-        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0], message='- View {:d}'.format(view), dockArea=self.VOIPanelDockArea)
+        VOIPanel = f.controlWidget(self, VOIbase, VOIdata[0],
+                                   message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
+                                   dockArea=self.VOIPanelDockArea)
         if view==1:
             self.vtkView.VOIPanel= VOIPanel
         elif view==2:
@@ -536,7 +542,7 @@ class camphor(QtGui.QMainWindow):
         fun(data=VOIdata)
 
         VOIPanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
-                                    message='- View {:d} - brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
+                                    message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
                                     dockArea=self.VOIPanelDockArea) for i in range(len(VOIdata))]
         if view == 1:
             self.vtkView.VOIPanel = VOIPanel

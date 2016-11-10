@@ -109,7 +109,7 @@ class camphorStack(camphorDisplayObject):
         """
 
         if mode==0:
-            self.importer[0].SetImportVoidPointer(self.data[self.currentTimeFrame])
+            self.importer[0].SetImportVoidPointer(self.tdata[self.currentTimeFrame])
             self.image[0].SetLookupTable(self.table)
             self.slice[0].SetLookupTable(self.sliceTable)
             self.currentColorMap = self.colorMap
@@ -314,7 +314,7 @@ class camphorStack(camphorDisplayObject):
         if self.numberOfTimeFrames > 1:
             if t+1 > self.numberOfTimeFrames:
                 if self.displayMode==0:
-                    self.importer[0].SetImportVoidPointer(self.data[-1])
+                    self.importer[0].SetImportVoidPointer(self.tdata[-1])
                 elif self.displayMode==1:
                     self.importer[0].SetImportVoidPointer(self.DFdata[-1])
                 self.importer[0].Modified()
@@ -322,7 +322,7 @@ class camphorStack(camphorDisplayObject):
                 return False
             else:
                 if self.displayMode==0:
-                    self.importer[0].SetImportVoidPointer(self.data[t])
+                    self.importer[0].SetImportVoidPointer(self.tdata[t])
                 elif self.displayMode==1:
                     self.importer[0].SetImportVoidPointer(self.DFdata[t])
                 self.importer[0].Modified()

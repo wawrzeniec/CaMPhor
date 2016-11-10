@@ -108,7 +108,7 @@ class camphorVOIExtractionMethod(ABC):
         if message is None:
             panelTitle = "VOI Control Panel"
         else:
-            panelTitle = "VOI Control Panel {:s}".format(message)
+            panelTitle = "{:s}".format(message)
         controlPanel.setWindowTitle(panelTitle)
         controlPanelContainer.setWindowTitle(panelTitle)
         layout = QtGui.QFormLayout()
@@ -157,12 +157,16 @@ class camphorVOIExtractionMethod(ABC):
         if dockArea is None:
             controlPanelContainer.show()
         else:
+            dockArea.parent().raise_()
             dockArea.addDockWidget(QtCore.Qt.DockWidgetArea(2), controlPanelContainer)
+            w = dockArea.width() / 2
+            h = controlPanelContainer.sizeHint().height()
+            print("{:s}: w={:f}, h={:f}".format(panelTitle, w, h))
+            controlPanelContainer.setFixedSize(QtCore.QSize(w, h))
             q = dockArea.findChildren(QtGui.QDockWidget)
             if len(q)%2 == 0:
                 dockArea.splitDockWidget(q[-2],q[-1],QtCore.Qt.Horizontal)
-            dockArea.show()
-            dockArea.raise_()
+
 
         return controlPanelContainer
 
@@ -247,5 +251,10 @@ class camphorVOIExtractionProgress(object):
         self.totalPercentDone = None
 
 
-
+# class CPContainer(QtGui.QDockWidget):
+#     def __init__(self, *kargs, **kwargs):
+#         super(CPContainer, self).__init__(*kargs, **kwargs)
+#
+#     def sizeHint(self):
+#         return QtCore.QSize(1,1)
 

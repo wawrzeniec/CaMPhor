@@ -293,7 +293,7 @@ def VTKdisplay(data):
 
 def applyReg(data, transform, reference):
 
-    if not (data.__class__ is list):
+    if not isinstance(data, list):
         data = [data]
         transform = [transform]
 
@@ -316,3 +316,13 @@ def applyReg(data, transform, reference):
     #     newd[i] = newd[i][::-1, ::-1, ::-1].asdataType(numpy.uint8).transpose((0, 2, 1)).copy(order="C")
 
     return newd
+
+def calculatedF(data, endframe=2):
+    baseline = numpy.zeros(data[0].shape)
+
+    for t in range(endframe):
+        baseline += data[t]
+    baseline /= endframe
+
+    return [numpy.maximum(0, d - baseline).astype(numpy.uint8) for d in data]
+

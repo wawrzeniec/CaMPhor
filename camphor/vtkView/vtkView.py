@@ -1058,7 +1058,6 @@ class vtkView(QtGui.QFrame):
                 z = self.planez
                 x = numpy.round(pos[0]).astype(numpy.int)
                 y = numpy.round(pos[1]).astype(numpy.int)
-                print(x)
                 f1 = [numpy.mean(self.tdata1[i][x - 1:x + 1, z - 1:z + 1, y - 1:y + 1]) for i in range(self.nt)]
                 f2 = [numpy.mean(odata[i][x - 1:x + 1, z - 1:z + 1, y - 1:y + 1]) for i in range(self.nt)]
             elif self.curPlaneOrientation == 1:
@@ -1397,7 +1396,6 @@ class playMovieThread(QtCore.QThread):
 
 def toggleShowVOIs(VOI=None, renwin=None):
     if VOI is not None:
-        print("toggling visibility to {:d}", 1 - VOI.volume.GetVisibility())
         VOI.volume.SetVisibility(1 - VOI.volume.GetVisibility())
         VOI.sliceActor.SetVisibility(1 - VOI.sliceActor.GetVisibility())
 

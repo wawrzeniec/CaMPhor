@@ -239,7 +239,7 @@ for i in range(self.vtkView.nt):
     initial_transform = sitk.DisplacementFieldTransform(transform_to_displacment_field_filter.Execute(sitk.Transform()))
 
     # Regularization (update field - viscous, total field - elastic).
-    initial_transform.SetSmoothingGaussianOnUpdate(varianceForUpdateField=0.0, varianceForTotalField=2.0)
+    initial_transform.SetSmoothingGaussianOnUpdate(varianceForUpdateField=0.0, varianceForTotalField=0.0)
 
     registration_method.SetInitialTransform(initial_transform)
 
