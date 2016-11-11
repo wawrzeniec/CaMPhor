@@ -107,12 +107,12 @@ class registerToTrialBaseline(camphorRegistrationMethod):
 
             self.registration_method.SetInterpolator(sitk.sitkLinear)
 
-            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.learningRate,
-                                                              numberOfIterations=self.parameters.numberOfIterations,
-                                                              convergenceMinimumValue=self.parameters.convergenceMinimumValue,
-                                                              convergenceWindowSize=self.parameters.convergenceWindowSize,
-                                                              estimateLearningRate=self.parameters.estimateLearningRate,
-                                                              maximumStepSizeInPhysicalUnits=self.parameters.maximumStepSizeInPhysicalUnits)
+            self.registration_method.SetOptimizerAsGradientDescent(learnRate=self.parameters.learnRate,
+                                                              nIter=self.parameters.nIter,
+                                                              convMinValue=self.parameters.convMinValue,
+                                                              convWinSize=self.parameters.convWinSize,
+                                                              estimateLRate=self.parameters.estimateLRate,
+                                                              maxStepSize=self.parameters.maxStepSize)
 
             # registration_method.SetOptimizerScalesFromIndexShift()
             self.registration_method.SetOptimizerScalesFromJacobian()
@@ -148,19 +148,19 @@ class registerToTrialBaseline(camphorRegistrationMethod):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
         progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
+        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.nIter) / self.nFrames
         progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
 
         return progress
 
 class registerToTrialBaselineParameters(object):
     def __init__(self):
-        self.learningRate = 1
-        self.numberOfIterations = 300
-        self.convergenceMinimumValue = 1e-6
-        self.convergenceWindowSize = 20
-        self.estimateLearningRate = sitk.ImageRegistrationMethod.EachIteration
-        self.maximumStepSizeInPhysicalUnits = 0.01
+        self.learnRate = 1
+        self.nIter = 300
+        self.convMinValue = 1e-6
+        self.convWinSize = 20
+        self.estimateLRate = sitk.ImageRegistrationMethod.EachIteration
+        self.maxStepSize = 0.01
 
         self._paramType = {'learnRate': ['doubleg', 1e-20, 1000, 1e-1],
                            'nIter': ['int', 1, 1e+6, 1],

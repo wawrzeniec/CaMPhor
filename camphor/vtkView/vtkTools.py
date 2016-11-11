@@ -123,7 +123,7 @@ class camphorStack(camphorDisplayObject):
         elif mode==1:
             # Does not allow this display mode if there is noly one time frame
             if self.numberOfTimeFrames > 1:
-                self.importer[0].SetImportVoidPointer(self.DFdata[self.currentTimeFrame])
+                self.importer[0].SetImportVoidPointer(self.tDFdata[self.currentTimeFrame])
                 self.image[0].SetLookupTable(self.DFtable)
                 self.slice[0].SetLookupTable(self.DFsliceTable)
                 self.currentColorMap = self.DFcolorMap
@@ -316,7 +316,7 @@ class camphorStack(camphorDisplayObject):
                 if self.displayMode==0:
                     self.importer[0].SetImportVoidPointer(self.tdata[-1])
                 elif self.displayMode==1:
-                    self.importer[0].SetImportVoidPointer(self.DFdata[-1])
+                    self.importer[0].SetImportVoidPointer(self.tDFdata[-1])
                 self.importer[0].Modified()
                 self.currentTimeFrame = self.numberOfTimeFrames
                 return False
@@ -324,7 +324,7 @@ class camphorStack(camphorDisplayObject):
                 if self.displayMode==0:
                     self.importer[0].SetImportVoidPointer(self.tdata[t])
                 elif self.displayMode==1:
-                    self.importer[0].SetImportVoidPointer(self.DFdata[t])
+                    self.importer[0].SetImportVoidPointer(self.tDFdata[t])
                 self.importer[0].Modified()
                 self.currentTimeFrame = t
                 return True

@@ -211,6 +211,17 @@ class allItemsContextMenu(QtGui.QMenu):
         self.displayStack.addAction(self.displayStackAction1)
         self.displayStack.addAction(self.displayStackAction2)
 
+        self.overlayRawReg = QtGui.QMenu('Overlay raw/registered')
+        self.overlayRawReg.setStatusTip('Overlays the raw and registered versions of the selected trial, using currently active transforms')
+        self.overlayRawRegAction1 = QtGui.QAction('In view 1', self)
+        self.overlayRawRegAction2 = QtGui.QAction('In view 2', self)
+        self.overlayRawRegAction1.triggered.connect(
+            lambda x: treeview.camphor.overlayRawReg(brain=brain[0], trial=trial[0], view=1))
+        self.overlayRawRegAction2.triggered.connect(
+            lambda x: treeview.camphor.overlayRawReg(brain=brain[0], trial=trial[0], view=2))
+        self.overlayRawReg.addAction(self.overlayRawRegAction1)
+        self.overlayRawReg.addAction(self.overlayRawRegAction2)
+
         self.displayVOIs = QtGui.QMenu('Display VOIs')
         self.displayVOIs.setStatusTip('Displays the VOIs of the selected trial in the specified view')
         self.displayVOIsAction1 = QtGui.QAction('In view 1', self)
@@ -268,7 +279,7 @@ class allItemsContextMenu(QtGui.QMenu):
 
         self.averageTrials = QtGui.QMenu('Display average')
         self.averageTrials.setStatusTip(
-            "Displys the average of the selected trials in the specified view")
+            "Displays the average of the selected trials in the specified view")
         self.averageTrialsAction1 = QtGui.QAction('In view 1', self)
         self.averageTrialsAction2 = QtGui.QAction('In view 2', self)
         self.averageTrialsAction1.triggered.connect(lambda x: treeview.camphor.averageTrials(brain, trial, view=1))
@@ -284,9 +295,9 @@ class allItemsContextMenu(QtGui.QMenu):
             self.addMenu(self.displayStack)
             hasVOI = treeview.camphor.project.brain[brain[0]].trial[trial[0]].VOIdata != []
             hasHRS = treeview.camphor.project.brain[brain[0]].highResScan is not None
+            hasReg = treeview.camphor.project.brain[brain[0]].trial[trial[0]].transforms != []
 
-            hasVOIs = treeview.camphor.project.brain[brain[0]].trial[trial[0]].VOIdata != []
-            if hasVOIs:
+            if hasVOI:
                 self.addMenu(self.displayVOIs)
                 self.addMenu(self.overlayVOIsOnStack)
             if hasHRS:
@@ -295,6 +306,8 @@ class allItemsContextMenu(QtGui.QMenu):
                 if hasVOI:
                     self.addMenu(self.overlayVOIHRS)
             self.addSeparator()
+            if hasReg:
+                self.addMenu(self.overlayRawReg)
             self.addMenu(self.showtDiff)
 
         elif(len(brain)==2):
@@ -324,24 +337,23 @@ class HRSContextMenu(QtGui.QMenu):
     def __init__(self, treeview, brain):
         super(HRSContextMenu, self).__init__()
 
-        self.loadInView1 = QtGui.QAction('Load in view 1', self)
-        self.loadInView1.setStatusTip('Load in VTK view #1')
-        self.loadInView1.triggered.connect(
+        self.displayStack = QtGui.QMenu('Display z-stack')
+        self.displayStack.setStatusTip('Displays the z-stack of the selected trial in the specified view')
+        self.displayStackAction1 = QtGui.QAction('In view 1', self)
+        self.displayStackAction2 = QtGui.QAction('In view 2', self)
+        self.displayStackAction1.triggered.connect(
             lambda x: treeview.camphor.openFileFromProject(brain=brain, trial=-1, view=1))
-
-        self.loadInView2 = QtGui.QAction('Load in view 2', self)
-        self.loadInView2.setStatusTip('Load in VTK view #2')
-        self.loadInView2.triggered.connect(
+        self.displayStackAction2.triggered.connect(
             lambda x: treeview.camphor.openFileFromProject(brain=brain, trial=-1, view=2))
-
+        self.displayStack.addAction(self.displayStackAction1)
+        self.displayStack.addAction(self.displayStackAction2)
 
         self.eraseTrial = QtGui.QAction('Remove from project', self)
         self.eraseTrial.setStatusTip('Remove from project')
         self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain, -1))
 
 
-        self.addAction(self.loadInView1)
-        self.addAction(self.loadInView2)
+        self.addMenu(self.displaystack)
         self.addSeparator()
         self.addAction(self.eraseTrial)
             

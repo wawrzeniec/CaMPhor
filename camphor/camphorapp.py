@@ -63,13 +63,13 @@ class camphor(QtGui.QMainWindow):
             if view==0:
                 self.rawData = DataIO.LSMLoad(fname)
                 if flip:
-                    self.rawData = [self.rawData[i][::-1,:,:] for i in range(len(self.rawData))]
+                    self.rawData = [self.rawData[i][::-1,:,:].copy(order='C') for i in range(len(self.rawData))]
                 self.dataLoaded = True
                 self.fileName = fname
             elif view==1:
                 self.rawData1 = DataIO.LSMLoad(fname)
                 if flip:
-                    self.rawData1 = [self.rawData1[i][::-1,:,:] for i in range(len(self.rawData1))]
+                    self.rawData1 = [self.rawData1[i][::-1,:,:].copy(order='C') for i in range(len(self.rawData1))]
                 self.dataLoaded1 = True
                 self.fileName = fname
                 # Renders the loaded data in the VTK plugin
@@ -85,7 +85,7 @@ class camphor(QtGui.QMainWindow):
             elif view==2:
                 self.rawData2 = DataIO.LSMLoad(fname)
                 if flip:
-                    self.rawData2 = [self.rawData2[i][::-1,:,:] for i in range(len(self.rawData2))]
+                    self.rawData2 = [self.rawData2[i][::-1,:,:].copy(order='C') for i in range(len(self.rawData2))]
                 self.dataLoaded2 = True
                 self.fileName2 = fname
 
@@ -324,6 +324,26 @@ class camphor(QtGui.QMainWindow):
         transforms1 = self.project.brain[brain[0]].trial[trial[0]].transforms
         transforms2 = self.project.brain[brain[1]].trial[trial[1]].transforms
         fun(data1=data1,transforms1=transforms1,data2=data2,transforms2=transforms2)
+
+    def overlayRawReg(self, brain, trial, view=1):
+        """
+        Overlays the raw and registered version of the same trial
+
+        :param brain:
+        :param trial:
+        :param view:
+        :return:
+        """
+        if view==1:
+            fun = self.vtkView.overlay
+        elif view==2:
+            fun = self.vtkView2.overlay
+        else:
+            fun = self.vtkView.overlay
+
+        data = DataIO.LSMLoad(self.project.brain[brain].trial[trial].dataFile)
+        transforms = self.project.brain[brain].trial[trial].transforms
+        fun(data1=data,transforms1=transforms,data2=data)
 
     def overlayHRS(self, brain, trial, view=1):
         if view==1:

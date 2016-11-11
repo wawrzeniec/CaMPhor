@@ -65,12 +65,16 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
 
                 mask = None
 
-                c = [ndimage.gaussian_filter(d, 5, order=0) for d in data]
+                c = [ndimage.gaussian_filter(d, 3, order=0).astype(numpy.uint8) for d in data]
                 cf = utils.calculatedF(c)
                 mask = cf[0]>5
                 for i in range(1,len(cf)):
                     mask = numpy.logical_or(mask,cf[i]>5)
-                mask = 1-mask
+                mask = numpy.logical_not(mask)
+                d = [numpy.multiply(k,mask) for k in c]
+
+                camphor.vtkView.assignData(d)
+                camphor.vtkView2.assignData(255*mask.astype(numpy.uint8))
                 data = c
 
                 # 2. Pre-registers
@@ -95,7 +99,9 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
         self.nFrames = nFrames
         transformObject = preRegisterToTrialBaselineTransform(nFrames=nFrames)
 
-        fixed_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
+        w = numpy.stack(data)
+        m = numpy.mean(w,0)
+        fixed_image = sitk.GetImageFromArray(m.astype(numpy.double))
         for i, d in enumerate(data):
             self.curFrame = i
 

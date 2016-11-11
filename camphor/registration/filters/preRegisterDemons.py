@@ -15,10 +15,10 @@ The filters uses a pre-registration in which each time frame is first registered
 Pre-registrating should in principle allow calculating an improved baseline for the subsequent registration.
 
 """
-class preRegisterToTrialBaseline(camphorRegistrationMethod):
+class preRegisterDemons(camphorRegistrationMethod):
     def __init__(self):
-        super(preRegisterToTrialBaseline, self).__init__()
-        self._parameters = preRegisterToTrialBaselineParameters()
+        super(preRegisterDemons, self).__init__()
+        self._parameters = preRegisterDemonsParameters()
         self.nDone = 0
         self.nTotal = 1
         self.curFrame = 0
@@ -44,7 +44,7 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
 
         for b in brain:
             nTrials = camphor.project.brain[b].nTrials
-            for iTrial in [2]: #range(nTrials): ##### !!!!!!! Only 2nd trial!!1
+            for iTrial in range(nTrials): ##### !!!!!!! Only 2nd trial!!1
                 # 1. Loads the data
                 dataFile = camphor.project.brain[b].trial[iTrial].dataFile
                 data = DataIO.LSMLoad(dataFile)
@@ -65,13 +65,13 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
 
                 mask = None
 
-                c = [ndimage.gaussian_filter(d, 5, order=0) for d in data]
-                cf = utils.calculatedF(c)
-                mask = cf[0]>5
-                for i in range(1,len(cf)):
-                    mask = numpy.logical_or(mask,cf[i]>5)
-                mask = 1-mask
-                data = c
+                # c = [ndimage.gaussian_filter(d, 5, order=0) for d in data]
+                # cf = utils.calculatedF(c)
+                # mask = cf[0]>5
+                # for i in range(1,len(cf)):
+                #     mask = numpy.logical_or(mask,cf[i]>5)
+                # mask = 1-mask
+                # data = c
 
                 # 2. Pre-registers
                 self.message('Pre-registering brain {:d}/{:d}, trial {:d}/{:d}'.format(b + 1, nBrains, iTrial + 1, nTrials),
@@ -93,9 +93,13 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformObject = preRegisterToTrialBaselineTransform(nFrames=nFrames)
+        transformObject = preRegisterDemonsTransform(nFrames=nFrames)
 
-        fixed_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
+        ## Here use the mean as teh template!!!!!
+        w = numpy.stack(data)
+        m = numpy.mean(w, 0)
+        fixed_image = sitk.GetImageFromArray(m.astype(numpy.double))
+        # fixed_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
         for i, d in enumerate(data):
             self.curFrame = i
 
@@ -116,24 +120,25 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
                 transform_to_displacment_field_filter.Execute(sitk.Transform()))
 
             # Regularization (update field - viscous, total field - elastic).
-            initial_transform.SetSmoothingGaussianOnUpdate(varianceForUpdateField=0.0, varianceForTotalField=2.0)
+            initial_transform.SetSmoothingGaussianOnUpdate(varianceForUpdateField=self.parameters.sigmaU,
+                                                           varianceForTotalField=self.parameters.sigmaTot)
 
             self.registration_method.SetInitialTransform(initial_transform)
 
-            self.registration_method.SetMetricAsDemons(1)  # intensities are equal if the difference is less than 10HU
+            self.registration_method.SetMetricAsDemons(self.parameters.iThresh)  # intensities are equal if the difference is less than 10HU
 
             # Multi-resolution framework.
             self.registration_method.SetShrinkFactorsPerLevel(shrinkFactors=[1])
-            self.registration_method.SetSmoothingSigmasPerLevel(smoothingSigmas=[0])
+            self.registration_method.SetSmoothingSigmasPerLevel(smoothingSigmas=[2])
 
             self.registration_method.SetInterpolator(sitk.sitkLinear)
 
-            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.learningRate,
-                                                              numberOfIterations=self.parameters.numberOfIterations,
-                                                              convergenceMinimumValue=self.parameters.convergenceMinimumValue,
-                                                              convergenceWindowSize=self.parameters.convergenceWindowSize,
-                                                              estimateLearningRate=self.parameters.estimateLearningRate,
-                                                              maximumStepSizeInPhysicalUnits=self.parameters.maximumStepSizeInPhysicalUnits)
+            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.lRate,
+                                                              numberOfIterations=self.parameters.nIter,
+                                                              convergenceMinimumValue=self.parameters.convThresh,
+                                                              convergenceWindowSize=self.parameters.convWin,
+                                                              estimateLearningRate=self.parameters.estLRate,
+                                                              maximumStepSizeInPhysicalUnits=self.parameters.maxStep)
 
             self.registration_method.SetOptimizerScalesFromIndexShift()
             #self.registration_method.SetOptimizerScalesFromJacobian()
@@ -167,44 +172,39 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
         progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
+        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.nIter) / self.nFrames
         progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
 
         return progress
 
-class preRegisterToTrialBaselineParameters(object):
+class preRegisterDemonsParameters(object):
     def __init__(self):
-        self.learningRate = 1
-        self.numberOfIterations = 300
-        self.convergenceMinimumValue = 1e-6
-        self.convergenceWindowSize = 20
-        self.estimateLearningRate = sitk.ImageRegistrationMethod.EachIteration
-        self.maximumStepSizeInPhysicalUnits = 0.1
-        self.objectiveFunction = 'Correlation'
+        self.lRate = 1
+        self.nIter = 300
+        self.convThresh = 1e-6
+        self.convWin = 5
+        self.estLRate = sitk.ImageRegistrationMethod.EachIteration
+        self.maxStep = 1
+        self.iThresh = 1
+        self.sigmaU = 0.0
+        self.sigmaTot = 2.0
 
-        self._paramType = {'learningRate': ['doubleg', 1e-20, 1000, 1e-1],
-                           'numberOfIterations': ['int', 1, 1e+6, 1],
-                           'convergenceMinimumValue': ['doubleg', 1e-20, 1, 1e-1],
-                           'convergenceWindowSize': ['int', 0, 1e+6, 10],
-                           'estimateLearningRate': ['list', [sitk.ImageRegistrationMethod.EachIteration,
+        self._paramType = {'lRate': ['doubleg', 1e-20, 1000, 1e-1],
+                           'nIter': ['int', 1, 1e+6, 1],
+                           'convThresh': ['doubleg', 1e-20, 1, 1e-1],
+                           'convWin': ['int', 0, 1e+6, 10],
+                           'estLRate': ['list', [sitk.ImageRegistrationMethod.EachIteration,
                                                              sitk.ImageRegistrationMethod.Once,
                                                              sitk.ImageRegistrationMethod.Never],
                                                     ['Each iteration', 'Once', 'Never']],
-                           'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1],
-                           'objectiveFunction': ['list', ['MattesMutualInformation',
-                                                          'Correlation',
-                                                          'ANTSNeighborhoodCorrelation',
-                                                          'JointHistogramMutualInformation',
-                                                          'MeanSquares'],
-                                                 ['Mattes Mutual Information',
-                                                  'Correlation',
-                                                  'ANTS Neighborhood Correlation',
-                                                  'Joint Histogram Mutual Information',
-                                                  'MeanSquares']]}
+                           'maxStep': ['doubleg', 1e-20, 1000, 1e-1],
+                           'iThresh': ['int', 1, 255, 1],
+                           'sigmaU': ['doubleg', 0, 100, 1e-2],
+                           'sigmaTot': ['doubleg', 0, 100, 1e-2]}
 
-class preRegisterToTrialBaselineTransform(transform.transform):
+class preRegisterDemonsTransform(transform.transform):
     def __init__(self, nFrames=0):
-        super(preRegisterToTrialBaselineTransform, self).__init__()
+        super(preRegisterDemonsTransform, self).__init__()
 
         # This transform is applied to an entire trial
         self.type = transform.TIMESLICEWISE
@@ -213,12 +213,12 @@ class preRegisterToTrialBaselineTransform(transform.transform):
         self.transform = [sitk.Euler3DTransform() for i in range(nFrames)]
 
         # The transform's name
-        self.name = 'preRegisterToTrialBaseline'
+        self.name = 'preRegisterDemons'
 
     def apply(self, data):
         transformed_data = []
 
-        print("Applying preRegisterToTrialBaselineTransform")
+        print("Applying preRegisterDemonsTransform")
         for i,d in enumerate(data):
             image = sitk.GetImageFromArray(d.astype(numpy.double))
             rimage = sitk.Resample(image, self.transform[i], sitk.sitkLinear, 0.0, image.GetPixelIDValue())
@@ -227,5 +227,5 @@ class preRegisterToTrialBaselineTransform(transform.transform):
         return transformed_data
 
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
-filter = preRegisterToTrialBaseline
+filter = preRegisterDemons
 
