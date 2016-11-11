@@ -93,7 +93,7 @@ class registerToHighResolutionScanZSlices(camphorRegistrationMethod):
         self.nFrames = nFrames
 
         # Creates the transform object
-        transformobject = registerToHighResolutionScanZSlicesTransform(nFrames=nFrames)
+        transformobject = registerToHighResolutionScanZSlicesTransform(self, nFrames=nFrames)
 
         nSlices = data[0].shape
         totalnSlices = nSlices[1]
@@ -231,7 +231,7 @@ class registerToHighResolutionScanZSlicesParameters(object):
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerToHighResolutionScanZSlicesTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(registerToHighResolutionScanZSlicesTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -242,6 +242,10 @@ class registerToHighResolutionScanZSlicesTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerToHighResolutionScanZSlices'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

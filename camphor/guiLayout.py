@@ -35,6 +35,14 @@ def makeLayout(self):
     self.saveProjectAction.setShortcut('Ctrl+S')
     self.saveProjectAction.setStatusTip('Save project in python pickle format')
     self.saveProjectAction.triggered.connect(self.saveProject)
+    self.saveProjectAction.setEnabled(False)
+
+    self.saveRegisteredAction = QtGui.QAction('Save registered', self)
+    self.saveRegisteredAction.setIcon(self.style().standardIcon(QtGui.QStyle.SP_DialogOpenButton))
+    self.saveRegisteredAction.setShortcut('Ctrl+Alt+S')
+    self.saveRegisteredAction.setStatusTip('Save registered trials as new TIF files')
+    self.saveRegisteredAction.triggered.connect(self.saveRegistered)
+    self.saveRegisteredAction.setEnabled(False)
 
     # Creates the status bar
     self.statusBar = QtGui.QStatusBar()
@@ -47,7 +55,10 @@ def makeLayout(self):
     self.fileMenu.addAction(self.openAction)
     self.fileMenu.addAction(self.openAction2)
     self.fileMenu.addSeparator()
+    self.fileMenu.addAction(self.loadProjectAction)
     self.fileMenu.addAction(self.saveProjectAction)
+    self.fileMenu.addSeparator()
+    self.fileMenu.addAction(self.saveRegisteredAction)
     self.fileMenu.addSeparator()
     self.fileMenu.addAction(self.quitAction)
 

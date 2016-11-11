@@ -250,14 +250,47 @@ class camphor(QtGui.QMainWindow):
 
         if fileName != ".":
             self.project = DataIO.loadProject(fileName=fileName, camphor=self)
-            self.projectView.setProject(self.project)
+            self.updateProjectView()
 
     def registerToMeanBaseline(self, brain, trial):
         print('brain=' + str(brain))
         print('trial=' + str(trial))
 
+    def deleteTransforms(self, brain, trial, index):
+        for ind in reversed(range(len(brain))):
+            print("deleting transform {:d}/{:d}/{:d}".format(brain[ind], trial[ind], index[ind]))
+            del self.project.brain[brain[ind]].trial[trial[ind]].transforms[index[ind]]
+        self.updateProjectView()
+
+    def showTransformDetails(self, brain, trial, index):
+        filter = self.project.brain[brain[0]].trial[trial[0]].transforms[index[0]].registrationMethod()
+        filter._parameters = self.project.brain[brain[0]].trial[trial[0]].transforms[index[0]].registrationParameters
+        paramLayout = self.regTools.makeParamLayout(filter,editable=False)
+        infoWidget = QtGui.QDialog(parent=self)
+        infoWidget.setWindowTitle("Transformation details")
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(QtGui.QLabel("Brain {:d}, trial {:d}, transformation {:d}".format(brain[0],trial[0],index[0])))
+        nameLayout = QtGui.QFormLayout()
+        nameLayout.addRow(QtGui.QLabel("Filter:"), QtGui.QLabel(self.project.brain[brain[0]].trial[trial[0]].transforms[index[0]].name))
+        layout.addLayout(nameLayout)
+        layout.addLayout(paramLayout)
+        infoWidget.setLayout(layout)
+        infoWidget.show()
+
     def updateProjectView(self):
         self.projectView.setProject(self.project)
+        if self.project.nBrains > 0:
+            self.saveProjectAction.setEnabled(True)
+        hasReg = False
+        for b in range(self.project.nBrains):
+            for t in range(self.project.brain[b].nTrials):
+                if self.project.brain[b].trial[t].transforms != []:
+                    hasReg = True
+                    break
+            if hasReg:
+                break
+        if hasReg:
+            self.saveRegisteredAction.setEnabled(True)
 
     def showDiff(self, brain, trial, view=1):
         if view==1:
@@ -372,17 +405,22 @@ class camphor(QtGui.QMainWindow):
                 os.mkdir(regDir)
 
             for trial in range(self.project.brain[brain].nTrials):
-                self.openFileFromProject(brain=brain,trial=trial,view=0)
-                d = numpy.copy(self.rawData,order='C')
-                for t in self.project.brain[brain].trial[trial].transforms:
-                    if t.active:
-                        d = t.apply(d)
+                if self.project.brain[brain].trial[trial].transforms != []:
+                    self.message('Saving brain {:d}/trial {:d}...'.format(brain, trial))
+                    self.openFileFromProject(brain=brain,trial=trial,view=0)
+                    d = numpy.copy(self.rawData,order='C')
+                    for t in self.project.brain[brain].trial[trial].transforms:
+                        if t.active:
+                            d = t.apply(d)
 
-                tname = self.project.brain[brain].trial[trial].name
-                tnamesplit = os.path.splitext(tname)
-                newname = tnamesplit[0] + '.registered.tif'
-                newpath = os.path.join(regDir,newname)
-                DataIO.saveImageSeries(d,newpath)
+                    tname = self.project.brain[brain].trial[trial].name
+                    tnamesplit = os.path.splitext(tname)
+                    newname = tnamesplit[0] + '.registered.tif'
+                    newpath = os.path.join(regDir,newname)
+                    DataIO.saveImageSeries(d,newpath)
+                    self.project.brain[brain].trial[trial].transforms = []
+                    self.project.brain[brain].trial[trial].dataFile = newpath
+        self.updateProjectView()
 
     def saveRegisteredHRS(self):
         for brain in range(self.project.nBrains):

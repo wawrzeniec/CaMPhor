@@ -111,7 +111,7 @@ class registerHighResolutionScanXYZSlices(camphorRegistrationMethod):
     def registerImage(self, template, data, target):
 
         # Creates the transform object
-        transformobject = registerHighResolutionScanXYZSlicesTransform()
+        transformobject = registerHighResolutionScanXYZSlicesTransform(self)
 
         fixed_image = sitk.GetImageFromArray(template) # template is passed as double already so no need to cast
         moving_image = sitk.GetImageFromArray(data[0].astype(numpy.double))
@@ -262,7 +262,7 @@ class registerHighResolutionScanXYZSlicesParameters(object):
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerHighResolutionScanXYZSlicesTransform(transform.transform):
-    def __init__(self):
+    def __init__(self, regMethod):
         super(registerHighResolutionScanXYZSlicesTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -273,6 +273,10 @@ class registerHighResolutionScanXYZSlicesTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerHighResolutionScanXYZSlices'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

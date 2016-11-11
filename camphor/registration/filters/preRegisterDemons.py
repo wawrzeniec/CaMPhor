@@ -93,7 +93,7 @@ class preRegisterDemons(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformObject = preRegisterDemonsTransform(nFrames=nFrames)
+        transformObject = preRegisterDemonsTransform(self, nFrames=nFrames)
 
         ## Here use the mean as teh template!!!!!
         w = numpy.stack(data)
@@ -203,7 +203,7 @@ class preRegisterDemonsParameters(object):
                            'sigmaTot': ['doubleg', 0, 100, 1e-2]}
 
 class preRegisterDemonsTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(preRegisterDemonsTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -214,6 +214,10 @@ class preRegisterDemonsTransform(transform.transform):
 
         # The transform's name
         self.name = 'preRegisterDemons'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

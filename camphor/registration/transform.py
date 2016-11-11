@@ -26,6 +26,7 @@ class transform(ABC):
         self.name = ''
         self._active = True
         self._transform = []
+        self.registrationMethod = None
 
     @property
     def transform(self):
@@ -75,7 +76,7 @@ class transform(ABC):
         """
         transform.copy()
 
-        This function creates a (mostly deep) copy of a transform, EXCLUDING THE transform property which is not serializable
+        This function creates a (mostly deep) copy of a transform, EXCLUDING the transform property which is not serializable
         Instead, the transform property is mapped to list with the same structure, containing None in each item
 
         A deepcopy operation could be implemented by writing ITK transforms to a file and reinstantiating them
@@ -94,7 +95,7 @@ class transform(ABC):
         :return: a copy of the transform object (without ITK transforms)
         """
         filterClass = self.__class__
-        newFilter = filterClass()
+        newFilter = filterClass(self.registrationMethod)
 
         d = self.__dict__
         for k in d.keys():

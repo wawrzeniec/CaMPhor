@@ -93,7 +93,7 @@ class registerToHighResolutionScan(camphorRegistrationMethod):
         self.nFrames = nFrames
 
         # Creates the transform object
-        transformobject = registerToHighResolutionScanTransform(nFrames=nFrames)
+        transformobject = registerToHighResolutionScanTransform(self, nFrames=nFrames)
 
         # First we need to downsample the template to match the dimensions of the data
         fixed_image = sitk.GetImageFromArray(template[0].astype(numpy.double))
@@ -211,7 +211,7 @@ class registerToHighResolutionScanParameters(object):
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerToHighResolutionScanTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(registerToHighResolutionScanTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -222,6 +222,10 @@ class registerToHighResolutionScanTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerToHighResolutionScan'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

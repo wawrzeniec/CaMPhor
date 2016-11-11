@@ -133,6 +133,7 @@ class projectView(QtGui.QTreeView):
             item = [self.model.itemFromIndex(i) for i in index]
             column = [i.column() for i in item]
             type = [i.type() for i in item]
+            row = [i.row() for i in item]
 
             # Checks if selected items are all trials
             if all(numpy.array(column) == 0) and all(numpy.array(type) == TRIAL_ITEM_TYPE):
@@ -141,10 +142,20 @@ class projectView(QtGui.QTreeView):
                 menu = allItemsContextMenu(self, brain, trial)
                 menu.exec_(self.viewport().mapToGlobal(position))
 
+            # Checks if the selected item is a HRS
             if len(item) == 1 and numpy.array(column) == 0 and numpy.array(type) == HIGHRESSCAN_ITEM_TYPE:
                 brain = item[0].brain
                 menu = HRSContextMenu(self, brain)
                 menu.exec_(self.viewport().mapToGlobal(position))
+
+            # Checks if the selected items are all transforms
+            if all(numpy.array(column) == 0) and all(numpy.array(type) == TRANSFORM_ITEM_TYPE):
+                brain = [i.brain for i in item]
+                trial = [i.trial for i in item]
+
+                menu = allTransformsContextMenu(self, brain, trial, row)
+                menu.exec_(self.viewport().mapToGlobal(position))
+
 
     def getCurrentTrial(self):
         """
@@ -357,6 +368,21 @@ class HRSContextMenu(QtGui.QMenu):
         self.addSeparator()
         self.addAction(self.eraseTrial)
             
+
+class allTransformsContextMenu(QtGui.QMenu):
+    def __init__(self, treeview, brain, trial, row):
+        super(allTransformsContextMenu, self).__init__()
+
+        self.deleteTransformsAction = QtGui.QAction('Delete transform(s)', self)
+        self.deleteTransformsAction.triggered.connect(lambda x: treeview.camphor.deleteTransforms(brain, trial, row))
+
+        self.showDetailsAction = QtGui.QAction('Show transform details', self)
+        self.showDetailsAction.triggered.connect(lambda x: treeview.camphor.showTransformDetails(brain, trial, row))
+
+        if len(brain)==1:
+            self.addAction(self.showDetailsAction)
+            self.addSeparator()
+        self.addAction(self.deleteTransformsAction)
 
 
 class brainItem(QtGui.QStandardItem):

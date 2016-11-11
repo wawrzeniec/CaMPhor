@@ -6,6 +6,7 @@ import camphor.DataIO as DataIO
 from camphor import utils
 from scipy import stats
 from scipy import ndimage
+from functools import partial
 
 """
 This filter calculates the baseline fluorescence of all trials, and for each trial,
@@ -97,7 +98,7 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformObject = preRegisterToTrialBaselineTransform(nFrames=nFrames)
+        transformObject = preRegisterToTrialBaselineTransform(self, nFrames=nFrames)
 
         w = numpy.stack(data)
         m = numpy.mean(w,0)
@@ -118,15 +119,15 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
                 self.registration_method.SetMetricFixedMask(maskImage)
 
             # similarity metric settings
-            if self.parameters.objectiveFunction == 'MattesMutualInformation':
+            if self.parameters.objFunction == 'MattesMutualInformation':
                 self.registration_method.SetMetricAsMattesMutualInformation(numberOfHistogramBins=100)
-            elif self.parameters.objectiveFunction == 'Correlation':
+            elif self.parameters.objFunction == 'Correlation':
                 self.registration_method.SetMetricAsCorrelation()
-            elif self.parameters.objectiveFunction == 'ANTSNeighborhoodCorrelation':
+            elif self.parameters.objFunction == 'ANTSNeighborhoodCorrelation':
                 self.registration_method.SetMetricAsANTSNeighborhoodCorrelation(2)
-            elif self.parameters.objectiveFunction == 'JointHistogramMutualInformation':
+            elif self.parameters.objFunction == 'JointHistogramMutualInformation':
                 self.registration_method.SetMetricAsJointHistogramMutualInformation(numberOfHistogramBins=20,varianceForJointPDFSmoothing=1.5)
-            elif self.parameters.objectiveFunction == 'MeanSquares':
+            elif self.parameters.objFunction == 'MeanSquares':
                 self.registration_method.SetMetricAsMeanSquares() # mean squares does not seem to work well at all
 
             self.registration_method.SetMetricSamplingStrategy(self.registration_method.RANDOM)
@@ -134,14 +135,14 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
 
             self.registration_method.SetInterpolator(sitk.sitkLinear)
 
-            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.learningRate,
-                                                              numberOfIterations=self.parameters.numberOfIterations,
-                                                              convergenceMinimumValue=self.parameters.convergenceMinimumValue,
-                                                              convergenceWindowSize=self.parameters.convergenceWindowSize,
-                                                              estimateLearningRate=self.parameters.estimateLearningRate,
-                                                              maximumStepSizeInPhysicalUnits=self.parameters.maximumStepSizeInPhysicalUnits)
+            self.registration_method.SetOptimizerAsGradientDescent(learningRate=self.parameters.lRate,
+                                                              numberOfIterations=self.parameters.nIter,
+                                                              convergenceMinimumValue=self.parameters.convThresh,
+                                                              convergenceWindowSize=self.parameters.convWin,
+                                                              estimateLearningRate=self.parameters.estLRate,
+                                                              maximumStepSizeInPhysicalUnits=self.parameters.maxStep)
 
-            # self.registration_method.SetOptimizerScalesFromIndexShift()
+            # registration_method.SetOptimizerScalesFromIndexShift()
             self.registration_method.SetOptimizerScalesFromJacobian()
 
             # setup for the multi-resolution framework
@@ -173,32 +174,32 @@ class preRegisterToTrialBaseline(camphorRegistrationMethod):
     def getProgress(self):
         progress = camphorRegistrationProgress()
         progress.iteration = self.registration_method.GetOptimizerIteration()
-        progress.objectiveFunctionValue = self.registration_method.GetMetricValue()
-        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.numberOfIterations) / self.nFrames
+        progress.objFunctionValue = self.registration_method.GetMetricValue()
+        progress.percentDone = 100 * (self.curFrame + progress.iteration / self.parameters.nIter) / self.nFrames
         progress.totalPercentDone = (self.nDone + progress.percentDone / 100) / self.nTotal * 100
 
         return progress
 
 class preRegisterToTrialBaselineParameters(object):
     def __init__(self):
-        self.learningRate = 1
-        self.numberOfIterations = 300
-        self.convergenceMinimumValue = 1e-6
-        self.convergenceWindowSize = 20
-        self.estimateLearningRate = sitk.ImageRegistrationMethod.EachIteration
-        self.maximumStepSizeInPhysicalUnits = 0.1
-        self.objectiveFunction = 'Correlation'
+        self.lRate = 1
+        self.nIter = 300
+        self.convThresh = 1e-6
+        self.convWin = 20
+        self.estLRate = sitk.ImageRegistrationMethod.EachIteration
+        self.maxStep = 0.1
+        self.objFunction = 'Correlation'
 
-        self._paramType = {'learningRate': ['doubleg', 1e-20, 1000, 1e-1],
-                           'numberOfIterations': ['int', 1, 1e+6, 1],
-                           'convergenceMinimumValue': ['doubleg', 1e-20, 1, 1e-1],
-                           'convergenceWindowSize': ['int', 0, 1e+6, 10],
-                           'estimateLearningRate': ['list', [sitk.ImageRegistrationMethod.EachIteration,
+        self._paramType = {'lRate': ['doubleg', 1e-20, 1000, 1e-1],
+                           'nIter': ['int', 1, 1e+6, 1],
+                           'convThresh': ['doubleg', 1e-20, 1, 1e-1],
+                           'convWin': ['int', 0, 1e+6, 10],
+                           'estLRate': ['list', [sitk.ImageRegistrationMethod.EachIteration,
                                                              sitk.ImageRegistrationMethod.Once,
                                                              sitk.ImageRegistrationMethod.Never],
                                                     ['Each iteration', 'Once', 'Never']],
-                           'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1],
-                           'objectiveFunction': ['list', ['MattesMutualInformation',
+                           'maxStep': ['doubleg', 1e-20, 1000, 1e-1],
+                           'objFunction': ['list', ['MattesMutualInformation',
                                                           'Correlation',
                                                           'ANTSNeighborhoodCorrelation',
                                                           'JointHistogramMutualInformation',
@@ -210,7 +211,7 @@ class preRegisterToTrialBaselineParameters(object):
                                                   'MeanSquares']]}
 
 class preRegisterToTrialBaselineTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(preRegisterToTrialBaselineTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -221,6 +222,10 @@ class preRegisterToTrialBaselineTransform(transform.transform):
 
         # The transform's name
         self.name = 'preRegisterToTrialBaseline'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

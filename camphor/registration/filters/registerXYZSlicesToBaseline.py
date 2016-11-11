@@ -83,7 +83,7 @@ class registerXYZSlicesToBaseline(camphorRegistrationMethod):
 
         # Creates the transform object
         nFrames = len(data)
-        transformobject = registerXYZSlicesToBaselineTransform(nFrames=nFrames)
+        transformobject = registerXYZSlicesToBaselineTransform(self, nFrames=nFrames)
 
         nSlices = template.shape
         totalnSlices = sum(nSlices)
@@ -203,7 +203,7 @@ class registerXYZSlicesToBaselineParameters(object):
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerXYZSlicesToBaselineTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(registerXYZSlicesToBaselineTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -214,6 +214,10 @@ class registerXYZSlicesToBaselineTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerXYZSlicesToBaseline'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
 

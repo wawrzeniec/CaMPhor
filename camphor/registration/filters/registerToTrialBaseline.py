@@ -81,7 +81,7 @@ class registerToTrialBaseline(camphorRegistrationMethod):
         # Creates the transform object
         nFrames = len(data)
         self.nFrames = nFrames
-        transformobject = registerToTrialBaselineTransform(nFrames=nFrames)
+        transformobject = registerToTrialBaselineTransform(self, nFrames=nFrames)
 
         fixed_image = sitk.GetImageFromArray(template.astype(numpy.double))
         for i, d in enumerate(data):
@@ -173,7 +173,7 @@ class registerToTrialBaselineParameters(object):
                            'maxStepSize': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerToTrialBaselineTransform(transform.transform):
-    def __init__(self, nFrames=0):
+    def __init__(self, regMethod, nFrames=0):
         super(registerToTrialBaselineTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -184,6 +184,10 @@ class registerToTrialBaselineTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerToTrialBaseline'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

@@ -140,7 +140,7 @@ class registerBaseline(camphorRegistrationMethod):
         print('Final metric value: {0}'.format(self.registration_method.GetMetricValue()))
         print('Optimizer\'s stopping condition, {0}'.format(self.registration_method.GetOptimizerStopConditionDescription()))
 
-        transformobject = registerBaselineTransform()
+        transformobject = registerBaselineTransform(self)
         transformobject.transform = final_transform
 
         print(target)
@@ -177,7 +177,7 @@ class registerBaselineParameters(object):
                            'maximumStepSizeInPhysicalUnits': ['doubleg', 1e-20, 1000, 1e-1]}
 
 class registerBaselineTransform(transform.transform):
-    def __init__(self):
+    def __init__(self, regMethod):
         super(registerBaselineTransform, self).__init__()
 
         # This transform is applied to an entire trial
@@ -188,6 +188,10 @@ class registerBaselineTransform(transform.transform):
 
         # The transform's name
         self.name = 'registerBaseline'
+
+        # The camphorRegistrationMethod object that created this transform (to keep track of parameters)
+        self.registrationMethod = regMethod.__class__
+        self.registrationParameters = regMethod.parameters
 
     def apply(self, data):
         transformed_data = []

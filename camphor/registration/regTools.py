@@ -15,10 +15,10 @@ class regTools(QtGui.QDockWidget):
         self.currentFilter = 0
         self.activeFilter = None
         self.activeFilterName = None
-        self.iniUI()
+        self.initUI()
 
 
-    def iniUI(self):
+    def initUI(self):
         self.setWindowTitle('Registration Tools')
 
         self.filterLabel = QtGui.QLabel()
@@ -101,7 +101,7 @@ class regTools(QtGui.QDockWidget):
         QtGui.QWidget().setLayout(self.paramFrame.layout())
         self.paramFrame.setLayout(self.paramLayout)
 
-    def makeParamLayout(self, f):
+    def makeParamLayout(self, f, editable=True):
         """
         Constructs the parameter edit zone for the specified filter (passed as a python module object)
 
@@ -114,39 +114,45 @@ class regTools(QtGui.QDockWidget):
         paramLayout = QtGui.QFormLayout()
         for i, j in enumerate(params):
             if j is not '_paramType':
-                if paramType[j][0] is 'double':
-                    w = QtGui.QDoubleSpinBox()
-                    w.setRange(paramType[j][1], paramType[j][2])
-                    w.setSingleStep(paramType[j][3])
-                    w.setValue(params[j])
-                    w.valueChanged.connect(partial(self.setParamNumeric, j))
-                    paramLayout.addRow(QtGui.QLabel(j), w)
-                elif paramType[j][0] is 'doubleg':
-                    w = QDoubleSpinBoxG()
-                    w.setRange(paramType[j][1], paramType[j][2])
-                    w.setSingleStep(paramType[j][3])
-                    w.setValue(params[j])
-                    w.valueChanged.connect(partial(self.setParamNumeric, j))
-                    paramLayout.addRow(QtGui.QLabel(j), w)
-                elif paramType[j][0] is 'int':
-                    w = QtGui.QSpinBox()
-                    w.setRange(paramType[j][1], paramType[j][2])
-                    w.setSingleStep(paramType[j][3])
-                    w.setValue(params[j])
-                    w.valueChanged.connect(partial(self.setParamNumeric, j))
-                    paramLayout.addRow(QtGui.QLabel(j), w)
-                elif paramType[j][0] is 'list':
-                    w = QtGui.QComboBox()
-                    itemValue = paramType[j][1]
-                    itemString = paramType[j][2]
-                    for ii in range(len(itemString)):
-                        w.addItem(itemString[ii], itemValue[ii])
-                        if params[j] == itemValue[ii]:
-                            w.setCurrentIndex(ii)
-                    w.currentIndexChanged.connect(partial(self.setParamList, j, itemValue))
-                    paramLayout.addRow(QtGui.QLabel(j), w)
-                elif paramType[j] is 'fixed':
-                    paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
+                if editable:
+                    if paramType[j][0] is 'double':
+                        w = QtGui.QDoubleSpinBox()
+                        w.setRange(paramType[j][1], paramType[j][2])
+                        w.setSingleStep(paramType[j][3])
+                        w.setValue(params[j])
+                        w.valueChanged.connect(partial(self.setParamNumeric, j))
+                        paramLayout.addRow(QtGui.QLabel(j), w)
+                    elif paramType[j][0] is 'doubleg':
+                        w = QDoubleSpinBoxG()
+                        w.setRange(paramType[j][1], paramType[j][2])
+                        w.setSingleStep(paramType[j][3])
+                        w.setValue(params[j])
+                        w.valueChanged.connect(partial(self.setParamNumeric, j))
+                        w.setEnabled(editable)
+                        paramLayout.addRow(QtGui.QLabel(j), w)
+                    elif paramType[j][0] is 'int':
+                        w = QtGui.QSpinBox()
+                        w.setRange(paramType[j][1], paramType[j][2])
+                        w.setSingleStep(paramType[j][3])
+                        w.setValue(params[j])
+                        w.valueChanged.connect(partial(self.setParamNumeric, j))
+                        w.setEnabled(editable)
+                        paramLayout.addRow(QtGui.QLabel(j), w)
+                    elif paramType[j][0] is 'list':
+                        w = QtGui.QComboBox()
+                        itemValue = paramType[j][1]
+                        itemString = paramType[j][2]
+                        for ii in range(len(itemString)):
+                            w.addItem(itemString[ii], itemValue[ii])
+                            if params[j] == itemValue[ii]:
+                                w.setCurrentIndex(ii)
+                        w.currentIndexChanged.connect(partial(self.setParamList, j, itemValue))
+                        w.setEnabled(editable)
+                        paramLayout.addRow(QtGui.QLabel(j), w)
+                    elif paramType[j] is 'fixed':
+                        paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
+                    else:
+                        paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
                 else:
                     paramLayout.addRow(QtGui.QLabel(j), QtGui.QLabel(str(params[j])))
 
