@@ -11,6 +11,7 @@ from PyQt4 import QtCore
 import struct
 import numpy
 
+
 def readConfig(fileName):
     """
     utils.readConfig(fileName)

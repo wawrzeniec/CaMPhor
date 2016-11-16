@@ -22,10 +22,10 @@ class VOITools(QtGui.QDockWidget):
         self.currentFilter = 0
         self.activeFilter = None
         self.activeFilterName = None
-        self.iniUI()
+        self.initUI()
 
 
-    def iniUI(self):
+    def initUI(self):
         self.setWindowTitle('VOI Extraction Tools')
 
         self.filterLabel = QtGui.QLabel()

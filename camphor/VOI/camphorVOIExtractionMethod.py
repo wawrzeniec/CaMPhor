@@ -195,7 +195,7 @@ class sliderLabel(QtGui.QWidget):
         if str.lower(dataType) == 'double':
             self.spinbox = QtGui.QDoubleSpinBox()
         elif str.lower(dataType) == 'doubleg':
-            self.spinbox = QtGui.QDoubleSpinBoxG()
+            self.spinbox = QDoubleSpinBoxG()
         elif str.lower(dataType) == 'int':
             self.spinbox = QtGui.QSpinBox()
         

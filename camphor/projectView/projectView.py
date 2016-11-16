@@ -298,6 +298,16 @@ class allItemsContextMenu(QtGui.QMenu):
         self.averageTrials.addAction(self.averageTrialsAction1)
         self.averageTrials.addAction(self.averageTrialsAction2)
 
+        self.tAverage = QtGui.QMenu('Temporal average')
+        self.tAverage.setStatusTip(
+            "Displays the temporal average of the selected trial in the specified view")
+        self.tAverageAction1 = QtGui.QAction('In view 1', self)
+        self.tAverageAction2 = QtGui.QAction('In view 2', self)
+        self.tAverageAction1.triggered.connect(lambda x: treeview.camphor.tAverage(brain, trial, view=1))
+        self.tAverageAction2.triggered.connect(lambda x: treeview.camphor.tAverage(brain, trial, view=2))
+        self.tAverage.addAction(self.tAverageAction1)
+        self.tAverage.addAction(self.tAverageAction2)
+
         self.eraseTrial = QtGui.QAction('Erase selected trial(s)', self)
         self.eraseTrial.setStatusTip('Erase selected trial(s)')
         self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain,trial))
@@ -319,6 +329,7 @@ class allItemsContextMenu(QtGui.QMenu):
             self.addSeparator()
             if hasReg:
                 self.addMenu(self.overlayRawReg)
+            self.addMenu(self.tAverage)
             self.addMenu(self.showtDiff)
 
         elif(len(brain)==2):
@@ -364,7 +375,7 @@ class HRSContextMenu(QtGui.QMenu):
         self.eraseTrial.triggered.connect(lambda x: treeview.camphor.eraseTrials(brain, -1))
 
 
-        self.addMenu(self.displaystack)
+        self.addMenu(self.displayStack)
         self.addSeparator()
         self.addAction(self.eraseTrial)
             

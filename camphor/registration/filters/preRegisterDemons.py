@@ -44,7 +44,7 @@ class preRegisterDemons(camphorRegistrationMethod):
 
         for b in brain:
             nTrials = camphor.project.brain[b].nTrials
-            for iTrial in range(nTrials): ##### !!!!!!! Only 2nd trial!!1
+            for iTrial in range(nTrials):
                 # 1. Loads the data
                 dataFile = camphor.project.brain[b].trial[iTrial].dataFile
                 data = DataIO.LSMLoad(dataFile)
@@ -95,7 +95,7 @@ class preRegisterDemons(camphorRegistrationMethod):
         self.nFrames = nFrames
         transformObject = preRegisterDemonsTransform(self, nFrames=nFrames)
 
-        ## Here use the mean as teh template!!!!!
+        ## Here use the mean as the template!!!!!
         w = numpy.stack(data)
         m = numpy.mean(w, 0)
         fixed_image = sitk.GetImageFromArray(m.astype(numpy.double))
@@ -186,7 +186,7 @@ class preRegisterDemonsParameters(object):
         self.estLRate = sitk.ImageRegistrationMethod.EachIteration
         self.maxStep = 1
         self.iThresh = 1
-        self.sigmaU = 0.0
+        self.sigmaU = 2.0
         self.sigmaTot = 2.0
 
         self._paramType = {'lRate': ['doubleg', 1e-20, 1000, 1e-1],

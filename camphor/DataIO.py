@@ -51,6 +51,11 @@ def LSMLoad(target):
             d2 = numpy.zeros((1, d.shape[0], d.shape[1], d.shape[2], d.shape[3]))
             d2[0, :, :, :, :] = d
             d = numpy.transpose(d2, (0, 1, 4, 2, 3)).copy(order='C')
+            # trick to fix inhomogeneity in size among files...
+            # if d.shape[1] == 128:
+            #     d = numpy.transpose(d2, (0, 1, 3, 4, 2)).copy(order='C')
+            # else:
+            #     d = numpy.transpose(d2, (0, 1, 2, 4, 3)).copy(order='C')
         else:
             print("Error: imageJ file with 4 dimensions - not implemented in dataIO.LMSLoad()")
 
