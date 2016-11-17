@@ -883,32 +883,42 @@ class vtkView(QtGui.QFrame):
         self.stackBeingDisplayed = True
         self.VOIBeingDisplayed = False
 
-    def overlayVOIs(self, data):
+    def overlayVOIs(self, data, VOIbase=None):
         """
-                function vtkView.overlayVOIs(self, data, baseData)
+                function vtkView.overlayVOIs(self, data, VOIbase = None)
 
                 Overlays any number of VOI images in the VTK view
                 data is a list of 3D binary arrays (uint8, containing 0-1 values) where each member is a set of VOIs
+
+                If there are only two data sets, it is possible to provide two stack images (VOIbase) to be displayed as well
 
                 :param data:    the VOI data
                 :return: nothing
                 """
 
-        self.data = [[d] for d in data] # often used to check the shape of the data
-        self.currentdata = self.data
-
-        self.VOI = vtkTools.mergeVOIs(data)
-        self.slice = self.VOI.slice
-
-        # No deltaF/F data with VOIs
         self.displaydFAction.setEnabled(False)
 
-        self.removeAllProps()
-        self.displayProps(self.VOI.volume, self.VOI.sliceActor)
-        self.initView(self.VOI.dimensions,1)
-        self.stackBeingDisplayed = False
-        self.VOIBeingDisplayed = True
-        self.updateVOIToolbar(VOIState=True, baseState=None)
+        self.VOI = vtkTools.mergeVOIs(data)
+        if VOIbase is not None:
+            s1 = vtkTools.makeStack([VOIbase[0]])
+            s2 = vtkTools.makeStack([VOIbase[1]])
+            self.stack = vtkTools.mergeStacks([s1, s2], colormap="diff")
+            self.slice = self.stack.slice + self.VOI.slice
+            self.removeAllProps()
+            self.displayProps([self.stack.volume, self.VOI.volume], [self.stack.sliceActor, self.VOI.sliceActor])
+            self.initView(self.VOI.dimensions, 1)
+            self.stackBeingDisplayed = True
+            self.VOIBeingDisplayed = True
+            self.updateVOIToolbar(VOIState=True, baseState=True)
+        else:
+            self.slice = self.VOI.slice
+            self.removeAllProps()
+            self.displayProps(self.VOI.volume, self.VOI.sliceActor)
+            self.initView(self.VOI.dimensions, 1)
+            self.stackBeingDisplayed = False
+            self.VOIBeingDisplayed = True
+            self.updateVOIToolbar(VOIState=True, baseState=None)
+
 
     def displayVOIs(self, VOIdata, VOIbase):
         """

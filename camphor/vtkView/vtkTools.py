@@ -135,8 +135,6 @@ class camphorStack(camphorDisplayObject):
                 self.slice[0].Update()
 
 
-
-
     def setDisplayModeToRaw(self):
         """
         camphorStack.setDisplayModeToRaw()
@@ -205,7 +203,6 @@ class camphorStack(camphorDisplayObject):
             self.DFsliceOpacityMap.AddPoint(8, 0.5)
             self.DFsliceOpacityMap.AddPoint(16, 1)
             self.DFsliceOpacityMap.AddPoint(255, 1)
-
         elif str.lower(colormap) == 'diff':
             self.opacityMap.AddPoint(0, 1)
             self.opacityMap.AddPoint(96, 0.1)
@@ -244,7 +241,6 @@ class camphorStack(camphorDisplayObject):
             self.DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
             self.DFcolorMap.AddRGBPoint(128, 1, 1, 1)
             self.DFcolorMap.AddRGBPoint(255, 1.0, 0.0, 0.0)
-
         elif str.lower(colormap) == 'magenta':
             self.opacityMap.AddPoint(0, 0)
             self.opacityMap.AddPoint(255, 0.25)
@@ -269,14 +265,13 @@ class camphorStack(camphorDisplayObject):
             self.DFsliceOpacityMap.AddPoint(8, 0.25)
             self.DFsliceOpacityMap.AddPoint(16, 0.5)
             self.DFsliceOpacityMap.AddPoint(255, 1)
-
         elif str.lower(colormap) == 'green':
             self.opacityMap.AddPoint(0, 0)
             self.opacityMap.AddPoint(255, 0.25)
 
             self.sliceOpacityMap.AddPoint(0, 0.0)
             self.sliceOpacityMap.AddPoint(8, 0.25)
-            self.sliceOpacityMap.AddPoint(16, 0.5)
+            self.sliceOpacityMap.AddPoint(16, 5)
             self.sliceOpacityMap.AddPoint(255, 1)
 
             self.colorMap.SetColorSpaceToRGB()
@@ -294,12 +289,103 @@ class camphorStack(camphorDisplayObject):
             self.DFsliceOpacityMap.AddPoint(8, 0.25)
             self.DFsliceOpacityMap.AddPoint(16, 0.5)
             self.DFsliceOpacityMap.AddPoint(255, 1)
+        elif str.lower(colormap) == 'magentadiff':
+            self.opacityMap.AddPoint(0, 1)
+            self.opacityMap.AddPoint(96, 0.1)
+            self.opacityMap.AddPoint(128, 0.0)
+            self.opacityMap.AddPoint(160, 0.1)
+            self.opacityMap.AddPoint(255, 1)
+
+            self.sliceOpacityMap.AddPoint(0, 1)
+            self.sliceOpacityMap.AddPoint(112, 1)
+            self.sliceOpacityMap.AddPoint(120, 0.5)
+            self.sliceOpacityMap.AddPoint(128, 0.25)
+            self.sliceOpacityMap.AddPoint(136, 0.5)
+            self.sliceOpacityMap.AddPoint(142, 1)
+            self.sliceOpacityMap.AddPoint(255, 1)
+
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.colorMap.AddRGBPoint(112, 0.0, 0.0, 0.5)
+            self.colorMap.AddRGBPoint(128, 0, 0, 0)
+            self.colorMap.AddRGBPoint(144, 0.5, 0.0, 0.5)
+            self.colorMap.AddRGBPoint(255, 1.0, 0.0, 1.0)
+
+            self.DFopacityMap.AddPoint(0, 1)
+            self.DFopacityMap.AddPoint(96, 0.1)
+            self.DFopacityMap.AddPoint(128, 0.0)
+            self.DFopacityMap.AddPoint(160, 0.1)
+            self.DFopacityMap.AddPoint(255, 1)
+
+            self.DFsliceOpacityMap.AddPoint(0, 1)
+            self.DFsliceOpacityMap.AddPoint(112, 1)
+            self.DFsliceOpacityMap.AddPoint(120, 0.5)
+            self.DFsliceOpacityMap.AddPoint(128, 0.25)
+            self.DFsliceOpacityMap.AddPoint(136, 0.5)
+            self.DFsliceOpacityMap.AddPoint(142, 1)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
+
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 0.0, 0.0, 1.0)
+            self.DFcolorMap.AddRGBPoint(128, 0, 0, 0)
+            self.DFcolorMap.AddRGBPoint(255, 1.0, 0.0, 1.0)
+        elif str.lower(colormap) == 'greendiff':
+            self.opacityMap.AddPoint(0, 1)
+            self.opacityMap.AddPoint(96, 0.1)
+            self.opacityMap.AddPoint(128, 0.0)
+            self.opacityMap.AddPoint(160, 0.1)
+            self.opacityMap.AddPoint(255, 1)
+
+            self.sliceOpacityMap.AddPoint(0, 1)
+            self.sliceOpacityMap.AddPoint(112, 1)
+            self.sliceOpacityMap.AddPoint(120, 0.5)
+            self.sliceOpacityMap.AddPoint(128, 0.25)
+            self.sliceOpacityMap.AddPoint(136, 0.5)
+            self.sliceOpacityMap.AddPoint(142, 1)
+            self.sliceOpacityMap.AddPoint(255, 1)
+
+            self.colorMap.SetColorSpaceToRGB()
+            self.colorMap.AddRGBPoint(0, 1.0, 1.0, 0.0)
+            self.colorMap.AddRGBPoint(112, 0.5, 0.5, 0.0)
+            self.colorMap.AddRGBPoint(128, 0, 0, 0)
+            self.colorMap.AddRGBPoint(144, 0.0, 0.5, 0.0)
+            self.colorMap.AddRGBPoint(255, 0.0, 1.0, 0.0)
+
+            self.DFopacityMap.AddPoint(0, 1)
+            self.DFopacityMap.AddPoint(96, 0.1)
+            self.DFopacityMap.AddPoint(128, 0.0)
+            self.DFopacityMap.AddPoint(160, 0.1)
+            self.DFopacityMap.AddPoint(255, 1)
+
+            self.DFsliceOpacityMap.AddPoint(0, 1)
+            self.DFsliceOpacityMap.AddPoint(112, 1)
+            self.DFsliceOpacityMap.AddPoint(120, 0.5)
+            self.DFsliceOpacityMap.AddPoint(128, 0.25)
+            self.DFsliceOpacityMap.AddPoint(136, 0.5)
+            self.DFsliceOpacityMap.AddPoint(142, 1)
+            self.DFsliceOpacityMap.AddPoint(255, 1)
+
+            self.DFcolorMap.SetColorSpaceToRGB()
+            self.DFcolorMap.AddRGBPoint(0, 1.0, 1.0, 0.0)
+            self.DFcolorMap.AddRGBPoint(128, 0, 0, 0)
+            self.DFcolorMap.AddRGBPoint(255, 0.0, 1.0, 0.0)
 
         for i in range(256):
             self.table.SetTableValue(i, list(self.colorMap.GetColor(i)) + [self.opacityMap.GetValue(i)])
             self.sliceTable.SetTableValue(i, list(self.colorMap.GetColor(i)) + [self.sliceOpacityMap.GetValue(i)])
             self.DFtable.SetTableValue(i, list(self.DFcolorMap.GetColor(i)) + [self.DFopacityMap.GetValue(i)])
             self.DFsliceTable.SetTableValue(i, list(self.DFcolorMap.GetColor(i)) + [self.DFsliceOpacityMap.GetValue(i)])
+
+        if self.displayMode==0:
+            self.currentColorMap = self.colorMap
+            self.currentOpacityMap = self.opacityMap
+            self.currentSliceColorMap = self.colorMap
+            self.currentSliceOpacityMap = self.sliceOpacityMap
+        else:
+            self.currentColorMap = self.DFcolorMap
+            self.currentOpacityMap = self.DFopacityMap
+            self.currentSliceColorMap = self.DFcolorMap
+            self.currentSliceOpacityMap = self.DFsliceOpacityMap
 
     def setTimeFrame(self, t):
         """
@@ -408,6 +494,9 @@ class camphorBlendedStacks(camphorDisplayObject):
         if colormap=='overlay':
             self.stack[0].setColorMap(colormap='magenta')
             self.stack[1].setColorMap(colormap='green')
+        elif colormap=='diff':
+            self.stack[0].setColorMap(colormap='magentadiff')
+            self.stack[1].setColorMap(colormap='greendiff')
         else:
             self.stack[0].setColorMap(colormap='magenta')
             self.stack[1].setColorMap(colormap='green')
@@ -924,9 +1013,9 @@ def overlayVOIsonStack(stack, VOI):
 
     return cV
 
-def mergeStacks(stacks):
+def mergeStacks(stacks, colormap=None):
     """
-    vtkTools.mergeStacks(stacks)
+    vtkTools.mergeStacks(stacks, colormap=None)
 
     This function merges two camphorStack objects together.
     The principle is to use independent components and assign a colormap for each component
@@ -940,7 +1029,12 @@ def mergeStacks(stacks):
     cV = camphorBlendedStacks()
 
     cV.stack = stacks
-    cV.setColorMap(colormap='overlay')
+
+    if colormap is None:
+        cV.setColorMap(colormap='overlay')
+    else:
+        cV.setColorMap(colormap=colormap)
+
     cV.numberOfDataSets = len(stacks)
 
     cV.numberOfTimeFrames = stacks[0].numberOfTimeFrames
@@ -970,8 +1064,8 @@ def mergeStacks(stacks):
     # Turns off independent components in order to render RGBA images
     cV.volumeProperty.IndependentComponentsOn()
     for i in range(cV.numberOfDataSets):
-        cV.volumeProperty.SetScalarOpacity(i, cV.stack[i].opacityMap)
-        cV.volumeProperty.SetColor(i, cV.stack[i].colorMap)
+        cV.volumeProperty.SetScalarOpacity(i, cV.stack[i].currentOpacityMap)
+        cV.volumeProperty.SetColor(i, cV.stack[i].currentColorMap)
 
     cV.volume.SetMapper(cV.volumeMapper)
     cV.sliceActor.SetMapper(cV.sliceMapper)

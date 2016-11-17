@@ -600,7 +600,13 @@ class camphor(QtGui.QMainWindow):
         VOIbase = [self.project.brain[i].trial[j].VOIbase for i,j, in zip(brain,trial)]
 
         # fun(data1=[VOIdata[0]], data2=[VOIdata[1]], colormap='Overlay')
-        fun(data=VOIdata)
+        if len(brain) == 2:
+            # If there are two trials, we also overlay the VOIbase together
+            M = max([numpy.max(V) for V in VOIbase])
+            nVOIbase = [(V * 127 / M + 128).astype(numpy.uint8) for V in VOIbase]
+            fun(data=VOIdata, VOIbase=nVOIbase)
+        else:
+            fun(data=VOIdata)
 
         VOIPanel = [f[i].controlWidget(self, VOIbase[i], VOIdata[i],
                                     message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[i],trial[i]),
