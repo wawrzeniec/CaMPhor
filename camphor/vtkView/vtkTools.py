@@ -426,7 +426,7 @@ class camphorStack(camphorDisplayObject):
         :return: nothing
         """
 
-        baseline = numpy.zeros(self.tdata[0].shape)
+        baseline = numpy.zeros(self.data[0].shape)
         tbaseline = numpy.zeros(self.tdata[0].shape)
 
         for t in range(baseline_endframe):
@@ -437,7 +437,7 @@ class camphorStack(camphorDisplayObject):
 
         self.DFdata = [numpy.maximum(0, self.data[t] - baseline).astype(numpy.uint8) for t in
                        range(self.numberOfTimeFrames)]
-        self.tDFdata = [numpy.maximum(0, self.tdata[t] - baseline).astype(numpy.uint8) for t in
+        self.tDFdata = [numpy.maximum(0, self.tdata[t] - tbaseline).astype(numpy.uint8) for t in
                        range(self.numberOfTimeFrames)]
 
 class camphorBlendedStacks(camphorDisplayObject):

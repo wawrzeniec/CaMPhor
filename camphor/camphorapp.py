@@ -630,20 +630,20 @@ class camphor(QtGui.QMainWindow):
             :return: nothing
             """
 
-            stackData = DataIO.LSMLoad(self.project.brain[0].trial[0].dataFile)
-            transforms = self.project.brain[0].trial[0].transforms
+            stackData = DataIO.LSMLoad(self.project.brain[brain[0]].trial[trial[0]].dataFile)
+            transforms = self.project.brain[brain[0]].trial[trial[0]].transforms
             for t in transforms:
                 if t.active:
                     stackData = t.apply(stackData)
 
             averageData = [numpy.mean(numpy.stack(stackData),0).astype(numpy.uint8)]
 
-            VOIdata = self.project.brain[0].trial[0].VOIdata
-            hasVOI = (VOIdata != [])
+            VOIdata = self.project.brain[brain[0]].trial[trial[0]].VOIdata
+            hasVOI = (VOIdata is not None)
 
             if hasVOI:
-                VOIbase = self.project.brain[0].trial[0].VOIbase
-                f = self.project.brain[0].trial[0].VOIfilter()
+                VOIbase = self.project.brain[brain[0]].trial[trial[0]].VOIbase
+                f = self.project.brain[brain[0]].trial[trial[0]].VOIfilter()
                 f._parameters = self.project.brain[brain[0]].trial[trial[0]].VOIfilterParams
                 VOIPanel = f.controlWidget(self, VOIbase, VOIdata,
                                message='[View {:d}] brain{:d}/trial{:d}'.format(view, brain[0], trial[0]),

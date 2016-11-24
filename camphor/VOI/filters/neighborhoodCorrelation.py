@@ -100,7 +100,6 @@ class neighborhoodCorrelation(camphorVOIExtractionMethod):
         return progress
 
 
-
 class neighborhoodCorrelationParameters(object):
     def __init__(self):
         self.prctile = 75
@@ -118,3 +117,6 @@ class neighborhoodCorrelationParameters(object):
 # All registration filters map the filter class to the 'filter' variable for easy dynamic instantiation
 filter = neighborhoodCorrelation
 
+# TODO: Segment VOIs
+# Segment VOIs by lowering the threshold progressively
+# Will also need a criterion for max size, and criteria for rejection
